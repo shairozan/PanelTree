@@ -35,6 +35,9 @@ func Command() *cobra.Command {
 	for _, verb := range []string{"init", "validate", "inspect", "build"} {
 		cmd.AddCommand(projectCommand(verb, cmd))
 	}
+	for _, verb := range []string{"edit", "review", "draft", "approve", "override", "clear-selection", "lock", "unlock"} {
+		cmd.AddCommand(editCommand(verb, cmd))
+	}
 	return cmd
 }
 

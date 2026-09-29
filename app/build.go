@@ -10,6 +10,8 @@ import (
 	"github.com/shairozan/PanelTree/internal/export"
 	"github.com/shairozan/PanelTree/internal/layout"
 	"github.com/shairozan/PanelTree/internal/project"
+	"github.com/shairozan/PanelTree/internal/workspace"
+	"github.com/shairozan/PanelTree/model"
 	"github.com/shairozan/PanelTree/render"
 	"image/color"
 	"os"
@@ -25,6 +27,8 @@ type BuildRequest struct {
 	Width, Height                    int
 }
 type BuildResult struct {
+	Layers                      map[string]LayerStatus `json:"layers,omitempty"`
+	Revision                    model.Revision         `json:"revision"`
 	LeafRenders, Recompositions int
 	Cache                       *build.Report `json:"cache,omitempty"`
 	Bundle                      string        `json:"bundle,omitempty"`
@@ -35,6 +39,20 @@ type BuildResult struct {
 }
 
 func (s *Service) Build(ctx context.Context, r BuildRequest) (BuildResult, error) {
+	var result BuildResult
+	err := workspace.Open(ctx, r.ProjectFile, func(w *workspace.Session) error {
+		states, e := selectedSnapshot(w)
+		if e != nil {
+			return e
+		}
+		result, e = s.build(ctx, r, w.Snapshot)
+		result.Layers = states
+		result.Revision = w.Snapshot.Revision
+		return e
+	})
+	return result, err
+}
+func (s *Service) build(ctx context.Context, r BuildRequest, snapshot *project.Snapshot) (BuildResult, error) {
 	if err := ctx.Err(); err != nil {
 		return BuildResult{}, err
 	}
@@ -51,10 +69,6 @@ func (s *Service) Build(ctx context.Context, r BuildRequest) (BuildResult, error
 		} else if !os.IsNotExist(err) {
 			return BuildResult{}, err
 		}
-	}
-	snapshot, err := project.Load(r.ProjectFile)
-	if err != nil {
-		return BuildResult{}, err
 	}
 	selected := -1
 	for i, p := range snapshot.Pages {

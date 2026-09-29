@@ -3,10 +3,12 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/shairozan/PanelTree/internal/adapters"
 	"github.com/shairozan/PanelTree/internal/layout"
 	"github.com/shairozan/PanelTree/internal/project"
+	"github.com/shairozan/PanelTree/internal/workspace"
 	"github.com/shairozan/PanelTree/render"
 	"github.com/shairozan/PanelTree/scene"
 	"path/filepath"
@@ -28,7 +30,8 @@ type ResolvedPage struct {
 }
 type Inspection struct {
 	*Snapshot
-	Scenes []ResolvedPage `json:"scenes"`
+	Layers map[string]LayerStatus `json:"layers,omitempty"`
+	Scenes []ResolvedPage         `json:"scenes"`
 }
 type ValidateResult struct {
 	Valid     bool `json:"valid"`
@@ -58,11 +61,31 @@ func (s *Service) Init(ctx context.Context, r InitRequest) (InitResult, error) {
 	return InitResult{ProjectFile: path}, err
 }
 func (s *Service) Inspect(ctx context.Context, r InspectRequest) (*Inspection, error) {
+	var result *Inspection
+	err := workspace.Open(ctx, r.ProjectFile, func(w *workspace.Session) error {
+		data, e := json.Marshal(w.Snapshot)
+		if e != nil {
+			return e
+		}
+		var original Snapshot
+		if e = json.Unmarshal(data, &original); e != nil {
+			return e
+		}
+		states, e := selectedSnapshot(w)
+		if e != nil {
+			return e
+		}
+		result, e = s.inspect(ctx, r, w.Snapshot)
+		if result != nil {
+			result.Snapshot = &original
+			result.Layers = states
+		}
+		return e
+	})
+	return result, err
+}
+func (s *Service) inspect(ctx context.Context, r InspectRequest, snapshot *project.Snapshot) (*Inspection, error) {
 	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	snapshot, err := project.Load(r.ProjectFile)
-	if err != nil {
 		return nil, err
 	}
 	result := &Inspection{Snapshot: snapshot}
@@ -79,9 +102,13 @@ func (s *Service) Validate(ctx context.Context, r InspectRequest) (ValidateResul
 	if err := ctx.Err(); err != nil {
 		return ValidateResult{}, err
 	}
-	snapshot, err := project.Load(r.ProjectFile)
-	if err != nil {
-		return ValidateResult{}, err
-	}
-	return ValidateResult{Valid: true, PageCount: len(snapshot.Pages)}, nil
+	var result ValidateResult
+	err := workspace.Open(ctx, r.ProjectFile, func(w *workspace.Session) error {
+		if _, e := selectedSnapshot(w); e != nil {
+			return e
+		}
+		result = ValidateResult{Valid: true, PageCount: len(w.Snapshot.Pages)}
+		return nil
+	})
+	return result, err
 }

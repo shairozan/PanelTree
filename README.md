@@ -39,6 +39,9 @@ See [SVG, lettering and editable bundles](docs/editable-bundles.md) for supporte
 
 See [incremental builds](docs/incremental-builds.md) for cache keys, dependency explanations, explicit draft revisions/seeds and recovery. Builds cache by default; `--cache-dir` selects a shared location and `--no-cache` bypasses it. Every export still requires a new destination.
 
+See [revision-aware editing](docs/editing.md) for typed changesets, review/approval,
+durable artwork pins, manual overrides, scoped locks, and interruption recovery.
+
 ## Runtime configuration
 
 Optional explicit configuration:
