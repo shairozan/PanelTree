@@ -94,3 +94,18 @@ func TestInspectResolvedBoundsAndOutputFit(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestBuildCommand(t *testing.T) {
+	t.Setenv("PANELTREE_LOG_LEVEL", "")
+	dir := filepath.Join(t.TempDir(), "book")
+	if _, err := executeProject(t, "init", dir); err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(dir, "demo.png")
+	if _, err := executeProject(t, "build", filepath.Join(dir, "project.yaml"), "--page", "page-01", "--output", out, "--width", "120", "--height", "180"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(out); err != nil {
+		t.Fatal(err)
+	}
+}

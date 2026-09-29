@@ -14,15 +14,20 @@ func projectCommand(verb string, root *cobra.Command) *cobra.Command {
 	v := viper.New()
 	service := app.NewService()
 	var inspection app.InspectRequest
+	var build app.BuildRequest
 	use := verb + " [project.yaml]"
 	if verb == "init" {
 		use = "init [new-directory]"
 	}
-	cmd := &cobra.Command{Use: use, Short: map[string]string{"init": "Create a new example book", "validate": "Validate a book, chapter or page", "inspect": "Inspect the validated tree as JSON"}[verb], Args: cobra.ExactArgs(1)}
-	if verb == "inspect" {
+	cmd := &cobra.Command{Use: use, Short: map[string]string{"init": "Create a new example book", "validate": "Validate a book, chapter or page", "inspect": "Inspect the validated tree as JSON", "build": "Export one page as a new PNG"}[verb], Args: cobra.ExactArgs(1)}
+	if verb == "inspect" || verb == "build" {
 		cmd.Flags().IntVar(&inspection.Width, "width", 0, "output pixel width (requires height)")
 		cmd.Flags().IntVar(&inspection.Height, "height", 0, "output pixel height (requires width)")
 		cmd.Flags().StringVar(&inspection.Fit, "fit", "error", "output aspect policy: error, contain, or cover")
+	}
+	if verb == "build" {
+		cmd.Flags().StringVar(&build.PageID, "page", "", "page ID (required for multi-page input)")
+		cmd.Flags().StringVar(&build.Output, "output", "", "new PNG destination; parent directory must exist")
 	}
 	bindErr := v.BindPFlag("log-level", root.PersistentFlags().Lookup("log-level"))
 	initialize := config.NewInitializer(&cfg, v, config.InitializerOptions{ConfigFlagName: "config"})
@@ -43,6 +48,12 @@ func projectCommand(verb string, root *cobra.Command) *cobra.Command {
 		case "inspect":
 			inspection.ProjectFile = args[0]
 			result, err = service.Inspect(cmd.Context(), inspection)
+		case "build":
+			build.ProjectFile = args[0]
+			build.Width = inspection.Width
+			build.Height = inspection.Height
+			build.Fit = inspection.Fit
+			result, err = service.Build(cmd.Context(), build)
 		}
 		if err != nil {
 			return err

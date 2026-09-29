@@ -8,4 +8,4 @@ page:
       layers:
         - id: hero
           role: character
-          source: {kind: svg, path: ../assets/hero.svg}
+          source: {kind: image, path: ../assets/hero.png}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/shairozan/PanelTree/internal/layout"
 	"github.com/shairozan/PanelTree/internal/project"
+	"github.com/shairozan/PanelTree/render"
 	"github.com/shairozan/PanelTree/scene"
 	"path/filepath"
 )
@@ -32,10 +33,14 @@ type ValidateResult struct {
 	Valid     bool `json:"valid"`
 	PageCount int  `json:"page_count"`
 }
-type Service struct{ measurer scene.Measurer }
+type Service struct {
+	measurer scene.Measurer
+	raster   render.Rasterizer
+}
 type ServiceOption func(*Service)
 
-func WithMeasurer(m scene.Measurer) ServiceOption { return func(s *Service) { s.measurer = m } }
+func WithMeasurer(m scene.Measurer) ServiceOption      { return func(s *Service) { s.measurer = m } }
+func WithRasterizer(r render.Rasterizer) ServiceOption { return func(s *Service) { s.raster = r } }
 
 func NewService(options ...ServiceOption) *Service {
 	s := &Service{}

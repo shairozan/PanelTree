@@ -6,7 +6,7 @@ Module: `github.com/shairozan/PanelTree`
 
 ## Status
 
-Sprint 02: recursive authoring types, strict YAML loading, project initialization, structural validation, and measurement/layout with resolved-scene JSON inspection. Rendering, MCP, and exports are planned and not implemented yet.
+Sprint 03: strict YAML projects, recursive layout, resolved-scene inspection, and PNG page export with independent source layers, transforms, masks and group opacity. SVG/text rendering, caching, MCP and PDF exports remain planned.
 
 ## Development
 
@@ -19,6 +19,7 @@ go run ./cmd/paneltree init my-book
 go run ./cmd/paneltree validate my-book/project.yaml
 go run ./cmd/paneltree inspect my-book/project.yaml
 go run ./cmd/paneltree inspect my-book/project.yaml --width 1080 --height 1920 --fit contain
+go run ./cmd/paneltree build my-book/project.yaml --page page-01 --output my-book/page-01.png
 go test ./...
 go build -o bin/paneltree ./cmd/paneltree
 ```
@@ -30,6 +31,8 @@ Commands are constructed by `internal/cli.Command()`; there is no `init()` regis
 Read [the schema](docs/schema.md), [architecture and CI](docs/architecture.md), and [engineering requirements](AGENTS.md). The canonical example is embedded from `internal/project/template`; initialization copies it with its fixture asset license.
 
 See [layout and measurement](docs/layout.md) for geometry, transforms and output-fit conventions. Text inspection requires an injected font-measurement provider; the CLI does not yet rasterize or measure fonts.
+
+See [PNG rendering](docs/rendering.md) for masks, alpha, limits and output protection. Exports require a new destination file and preserve all source assets and layer definitions.
 
 ## Runtime configuration
 
@@ -45,4 +48,4 @@ go run ./cmd/paneltree --config runtime.yaml --log-level debug
 
 Precedence is explicit flags, environment, the selected file, then defaults. `PANELTREE_LOG_LEVEL` sets the log level through the environment. Valid values are `debug`, `info`, `warn`, and `error`; the setting is reserved for service logging as those services are added. No configuration file is required or automatically created. An explicit missing file or unknown configuration field is an error. Help and version do not load configuration.
 
-Runtime configuration is separate from future book/page project definitions.
+Runtime configuration is separate from book/page project definitions.

@@ -5,7 +5,14 @@ import (
 	"context"
 	"github.com/shairozan/PanelTree/model"
 	"github.com/shairozan/PanelTree/scene"
+	"image"
 )
+
+// Rasterizer reads an existing leaf into pixels. Returned images are read-only;
+// placement, clipping, masks and opacity belong to the compositor.
+type Rasterizer interface {
+	Raster(context.Context, model.Source, string) (image.Image, error)
+}
 
 type Descriptor struct {
 	Name, Version string
