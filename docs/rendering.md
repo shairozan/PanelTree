@@ -16,7 +16,7 @@ The shared `app.Service.Build` loads and validates the project, selects a page, 
 
 Layers are painted in YAML order, first at the back. Local normalized frames, center-based scale/rotation and inherited transforms follow [layout conventions](layout.md). PNGs default to centered `contain`; `cover` crops to the layer frame. Sampling uses nearest neighbors and pixel centers, with numerical tolerance at shared boundaries. Rotation is supported but edges are not antialiased yet. Color blending uses Go's premultiplied 8-bit RGBA source-over semantics, without ICC management or linear-light conversion.
 
-Groups compose into isolated transparent surfaces before their opacity is applied, so overlapping children do not accumulate group opacity multiple times. Groups do not implicitly crop their children. Panel rectangles and the output canvas clip all descendants. Each mask is a PNG relative to the declaring page; its **alpha channel** is stretched across the layer/group's local frame and transformed with it. Mask RGB is ignored: an opaque black-and-white PNG is fully opaque as a mask. A mask clips content outside its frame. Child masks apply before group masks and opacity.
+Containers compose into isolated transparent surfaces. Layer groups apply opacity after their children, so overlapping children do not accumulate group opacity multiple times. A completed first-child surface becomes the parent's accumulator; structural chains need no additional simultaneous surfaces. Groups do not implicitly crop their children. Panel rectangles and the output canvas clip all descendants. Each mask is a PNG relative to the declaring page; its **alpha channel** is stretched across the layer/group's local frame and transformed with it. Mask RGB is ignored: an opaque black-and-white PNG is fully opaque as a mask. A mask clips content outside its frame. Child masks apply before group masks and opacity.
 
 Page backgrounds accept `#RRGGBB` or `#RRGGBBAA`; omission is transparent. The page background also fills letterboxing. Leaves, source PNGs and authoring YAML stay separate and unmodified. The exported page itself is flattened; use YAML and `inspect` for layer identities, bounds and subsequent movement. The optional `--bundle` export supplies editable SVG groups and portable source assets.
 
@@ -27,7 +27,7 @@ Page backgrounds accept `#RRGGBB` or `#RRGGBBAA`; omission is transparent. The p
 - Simultaneously live composition surfaces are limited to 256 MiB. Decoded inputs, masks, encoder state and Go runtime/GC overhead are additional; this is not an operating-system memory cap. Deep groups at large resolutions can exceed the surface budget and fail rather than allocate indefinitely.
 - Composition accepts at most 4096 visited nodes and depth 128. Context cancellation is checked during decoding, scanlines, encoding and before publishing.
 
-Errors identify a missing/corrupt leaf or mask and include page/layer context. Unsupported SVG features, missing fonts and lettering overflow fail explicitly; see the bounded adapters in Sprint 04. No persistent cache, job queue, automatic generation, PDF or motion output is included yet.
+Errors identify a missing/corrupt leaf or mask and include page/layer context. Unsupported SVG features, missing fonts and lettering overflow fail explicitly; see the bounded adapters in Sprint 04. [Persistent caching](incremental-builds.md) is enabled by default. Job queues, automatic generation, PDF and motion output remain planned.
 
 ## Reproducible example
 

@@ -6,7 +6,7 @@ Module: `github.com/shairozan/PanelTree`
 
 ## Status
 
-Sprint 04: strict YAML projects, recursive layout, PNG/SVG/basic-Latin lettering, and portable editable SVG bundles with preserved sources, masks, fonts and composition metadata. Caching, MCP and PDF exports remain planned.
+Sprint 05: strict YAML projects, recursive layout, PNG/SVG/basic-Latin lettering, portable editable SVG bundles, and content-addressed incremental builds. MCP and PDF exports remain planned.
 
 ## Development
 
@@ -36,6 +36,8 @@ See [layout and measurement](docs/layout.md) for geometry, transforms and output
 See [PNG rendering](docs/rendering.md) for masks, alpha, limits and output protection. Exports require a new destination file and preserve all source assets and layer definitions.
 
 See [SVG, lettering and editable bundles](docs/editable-bundles.md) for supported SVG coverage, font requirements, portable publication and external-edit limitations.
+
+See [incremental builds](docs/incremental-builds.md) for cache keys, dependency explanations, explicit draft revisions/seeds and recovery. Builds cache by default; `--cache-dir` selects a shared location and `--no-cache` bypasses it. Every export still requires a new destination.
 
 ## Runtime configuration
 

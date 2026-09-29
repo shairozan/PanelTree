@@ -3,6 +3,7 @@ package adapters
 import (
 	"context"
 	"fmt"
+	"github.com/shairozan/PanelTree/internal/cache"
 	"github.com/shairozan/PanelTree/model"
 	"github.com/shairozan/PanelTree/render"
 	"github.com/shairozan/PanelTree/scene"
@@ -12,10 +13,38 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 )
 
 type Builtin struct{}
+
+func (Builtin) CacheRecipe(ctx context.Context, r render.Request) (any, error) {
+	s := r.Source
+	for _, p := range []*string{&s.Path, &s.Font} {
+		if *p != "" {
+			b, err := ReadAsset(ctx, r.BaseDir, *p, 32<<20)
+			if err != nil {
+				return nil, err
+			}
+			*p = cache.Hash(b)
+		}
+	}
+	// PNG decoding is independent of placement and target resolution.
+	if s.Kind == "image" {
+		r.Scene = scene.Context{}
+		r.Fit = ""
+	} else {
+		r.Scene.Bounds.X = 0
+		r.Scene.Bounds.Y = 0
+	}
+	return struct {
+		Version string
+		Source  model.Source
+		Fit     string
+		Scene   scene.Context
+	}{"builtin/" + s.Kind + "/v1/x-image-v0.46.0/" + runtime.Version(), s, r.Fit, r.Scene}, nil
+}
 
 func (Builtin) Raster(ctx context.Context, s model.Source, base string) (image.Image, error) {
 	if s.Kind == "image" {

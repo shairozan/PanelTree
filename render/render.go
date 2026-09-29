@@ -20,6 +20,16 @@ type SceneRasterizer interface {
 	RasterScene(context.Context, Request) (image.Image, error)
 }
 
+// CacheRasterizer opts into deterministic production. CacheRecipe must describe
+// every consumed dependency by content, algorithm/version and relevant context,
+// never by machine path or time. Dependencies must remain frozen until render
+// completes. A changed recipe is required for a new draft or stochastic seed.
+type CacheRasterizer interface {
+	Rasterizer
+	SceneRasterizer
+	CacheRecipe(context.Context, Request) (any, error)
+}
+
 type Descriptor struct {
 	Name, Version string
 	SourceKinds   []string

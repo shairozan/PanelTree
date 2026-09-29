@@ -15,7 +15,7 @@ import (
 	"path/filepath"
 )
 
-const BundleVersion = "paneltree-bundle/v0.4.0"
+const BundleVersion = "paneltree-bundle/v0.5.0"
 
 type Provenance struct {
 	Role     string `json:"role"`
@@ -168,8 +168,18 @@ func (s *Stage) Abort() {
 	}
 }
 func (s *Stage) Complete(ctx context.Context, resolved scene.Resolved, im image.Image) (string, string, error) {
-	if err := PNG(ctx, filepath.Join(s.Dir, "page.png"), im); err != nil {
-		return "", "", err
+	return s.CompleteCached(ctx, resolved, im, nil, "")
+}
+
+func (s *Stage) CompleteCached(ctx context.Context, resolved scene.Resolved, im image.Image, encoded []byte, buildID string) (string, string, error) {
+	var publishErr error
+	if encoded == nil {
+		publishErr = PNG(ctx, filepath.Join(s.Dir, "page.png"), im)
+	} else {
+		publishErr = PNGBytes(ctx, filepath.Join(s.Dir, "page.png"), encoded)
+	}
+	if publishErr != nil {
+		return "", "", publishErr
 	}
 	if err := s.editableSVG(ctx, resolved); err != nil {
 		return "", "", err
@@ -183,11 +193,18 @@ func (s *Stage) Complete(ctx context.Context, resolved scene.Resolved, im image.
 		return "", "", err
 	}
 	manifest := Composition{Version: BundleVersion, Page: s.Page, Scene: resolved, Provenance: s.Provenance}
-	identity, err := json.Marshal(manifest)
+	identity, err := json.Marshal(struct {
+		Version string
+		Page    model.Page
+		Scene   scene.Resolved
+	}{BundleVersion, s.Page, resolved})
 	if err != nil {
 		return "", "", err
 	}
 	manifest.BuildID = digest(identity)
+	if buildID != "" {
+		manifest.BuildID = buildID
+	}
 	b, err = json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
 		return "", "", err

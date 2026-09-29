@@ -14,6 +14,17 @@ import (
 )
 
 func Page(ctx context.Context, resolved scene.Resolved, base string, background color.Color, raster render.Rasterizer) (*image.RGBA, error) {
+	return PageWithMemo(ctx, resolved, base, background, raster, nil)
+}
+
+// Memo stores transparent node compositions in output coordinates. Returned
+// images must have exactly the output bounds. The caller owns their memory.
+type Memo interface {
+	Load(context.Context, scene.ResolvedNode) (*image.RGBA, error)
+	Save(context.Context, scene.ResolvedNode, *image.RGBA) error
+}
+
+func PageWithMemo(ctx context.Context, resolved scene.Resolved, base string, background color.Color, raster render.Rasterizer, memo Memo) (*image.RGBA, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -24,7 +35,7 @@ func Page(ctx context.Context, resolved scene.Resolved, base string, background 
 	if raster == nil {
 		return nil, fmt.Errorf("missing rasterizer")
 	}
-	e := engine{ctx: ctx, base: base, raster: raster, output: o, rect: image.Rect(0, 0, o.Width, o.Height)}
+	e := engine{ctx: ctx, base: base, raster: raster, output: o, rect: image.Rect(0, 0, o.Width, o.Height), memo: memo}
 	out, err := e.surface()
 	if err != nil {
 		return nil, err
@@ -41,6 +52,7 @@ func Page(ctx context.Context, resolved scene.Resolved, base string, background 
 // Bound simultaneously live compositing surfaces to 256 MiB. The PNG adapter
 // separately limits each decoded input to 4M pixels (including masks).
 type engine struct {
+	memo   Memo
 	ctx    context.Context
 	base   string
 	raster render.Rasterizer
@@ -74,26 +86,84 @@ func inverse(m scene.Matrix) (scene.Matrix, error) {
 	return r, nil
 }
 func (e *engine) paint(dst *image.RGBA, n scene.ResolvedNode, depth int) error {
-	if err := e.ctx.Err(); err != nil {
-		return err
-	}
-	e.nodes++
-	if depth > 128 || e.nodes > 4096 {
-		return fmt.Errorf("composition tree exceeds depth/node limit")
-	}
-	if n.Kind != "layer" {
-		for _, c := range n.Children {
-			if err := e.paint(dst, c, depth+1); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-	layer, err := e.surface()
+	layer, err := e.node(n, depth)
 	if err != nil {
 		return err
 	}
 	defer e.release()
+	draw.Draw(dst, e.rect, layer, image.Point{}, draw.Over)
+	return nil
+}
+
+// A completed first child becomes its parent's accumulator. Its cached bytes
+// have already been published; mutating this private surface cannot alter them.
+// Single-child structural chains therefore consume no additional surfaces.
+func (e *engine) node(n scene.ResolvedNode, depth int) (result *image.RGBA, err error) {
+	if err = e.ctx.Err(); err != nil {
+		return nil, err
+	}
+	e.nodes++
+	if depth > 128 || e.nodes > 4096 {
+		return nil, fmt.Errorf("composition tree exceeds depth/node limit")
+	}
+	if e.memo != nil {
+		size := int64(e.rect.Dx()) * int64(e.rect.Dy()) * 4
+		if e.live+size > 256<<20 {
+			return nil, fmt.Errorf("composition exceeds 256 MiB surface budget")
+		}
+		cached, loadErr := e.memo.Load(e.ctx, n)
+		if loadErr != nil {
+			return nil, loadErr
+		}
+		if cached != nil {
+			if cached.Bounds() != e.rect {
+				return nil, fmt.Errorf("invalid cached composition bounds")
+			}
+			e.live += size
+			return cached, nil
+		}
+	}
+	var layer *image.RGBA
+	defer func() {
+		if err != nil && layer != nil {
+			e.release()
+		}
+	}()
+	if n.Source == nil {
+		for _, child := range n.Children {
+			var next *image.RGBA
+			next, err = e.node(child, depth+1)
+			if err != nil {
+				return nil, err
+			}
+			if layer == nil {
+				layer = next
+			} else {
+				draw.Draw(layer, e.rect, next, image.Point{}, draw.Over)
+				e.release()
+			}
+		}
+	}
+	if layer == nil {
+		layer, err = e.surface()
+		if err != nil {
+			return nil, err
+		}
+	}
+	if n.Kind == "layer" {
+		if err = e.finishLayer(layer, n); err != nil {
+			return nil, err
+		}
+	}
+	if e.memo != nil {
+		if err = e.memo.Save(e.ctx, n, layer); err != nil {
+			return nil, err
+		}
+	}
+	return layer, nil
+}
+
+func (e *engine) finishLayer(layer *image.RGBA, n scene.ResolvedNode) error {
 	world := e.output.World.Multiply(n.World)
 	footprint := pixelRect(world.Bounds(n.Bounds.Width, n.Bounds.Height))
 	inv, err := inverse(world)
@@ -138,12 +208,6 @@ func (e *engine) paint(dst *image.RGBA, n scene.ResolvedNode, depth int) error {
 				layer.Set(x, y, src.At(src.Bounds().Min.X+sampleIndex(sx, src.Bounds().Dx()), src.Bounds().Min.Y+sampleIndex(sy, src.Bounds().Dy())))
 			}
 		}
-	} else {
-		for _, c := range n.Children {
-			if err := e.paint(layer, c, depth+1); err != nil {
-				return err
-			}
-		}
 	}
 	var mask image.Image
 	if n.Mask != "" {
@@ -178,7 +242,6 @@ func (e *engine) paint(dst *image.RGBA, n scene.ResolvedNode, depth int) error {
 			}
 		}
 	}
-	draw.Draw(dst, e.rect, layer, image.Point{}, draw.Over)
 	return nil
 }
 

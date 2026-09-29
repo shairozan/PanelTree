@@ -16,7 +16,9 @@ source: {kind: svg, path: ../assets/prop.svg}
 source: {kind: text, text: "Hello", font: ../assets/dialogue.ttf, font_size: 30, color: '#111111'}
 ```
 
-Image/SVG sources require a path and reject text-only fields. Text requires text, font and positive font_size, without a path. This sprint does not open or rasterize asset files; missing asset checks arrive with renderers. Paths are interpreted relative to the page document; inspection reports source file locations. Imported references can traverse `..`; this local loader is not a sandbox. The later workspace/MCP boundary must enforce configured roots.
+Image/SVG sources require a path and reject text-only fields. Text requires text, font and positive font_size, without a path. Builds open and validate source assets; structural validation alone does not check them. Paths are interpreted relative to the page document; inspection reports source file locations. Imported references can traverse `..`; this local loader is not a sandbox. The later workspace/MCP boundary must enforce configured roots.
+
+Any source may add `draft: {revision: 1, seed: 42}`. Both values are unsigned 64-bit integers and default to fixed zero; neither is automatically randomized or incremented. These controls change production identity even for static sources, whose pixels remain unchanged. See [incremental builds](incremental-builds.md).
 
 Layers may specify `frame: {x, y, width, height}` in parent-normalized coordinates, `fit: contain|cover`, `transform: {scale_x, scale_y, rotation}`, `opacity`, and `mask`. Frame dimensions and scales must be positive finite values; positions/rotation must be finite and opacity is `[0,1]`. Omitted frames/scales remain absent for the resolver to default to full-parent/unit-scale. Negative/outside-parent positions are permitted; clipping is a later compositor responsibility. A mask is an asset path. Semantic color/font interpretation belongs to the relevant renderer.
 

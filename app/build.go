@@ -4,10 +4,13 @@ import (
 	"context"
 	"fmt"
 	"github.com/shairozan/PanelTree/internal/adapters"
+	"github.com/shairozan/PanelTree/internal/build"
+	"github.com/shairozan/PanelTree/internal/cache"
 	"github.com/shairozan/PanelTree/internal/compose"
 	"github.com/shairozan/PanelTree/internal/export"
 	"github.com/shairozan/PanelTree/internal/layout"
 	"github.com/shairozan/PanelTree/internal/project"
+	"github.com/shairozan/PanelTree/render"
 	"image/color"
 	"os"
 	"path/filepath"
@@ -15,16 +18,20 @@ import (
 )
 
 type BuildRequest struct {
+	CacheDir                         string
+	NoCache                          bool
 	BundleRoot                       string
 	ProjectFile, PageID, Output, Fit string
 	Width, Height                    int
 }
 type BuildResult struct {
-	Bundle        string `json:"bundle,omitempty"`
-	BuildID       string `json:"build_id,omitempty"`
-	PageID        string `json:"page_id"`
-	Output        string `json:"output"`
-	Width, Height int
+	LeafRenders, Recompositions int
+	Cache                       *build.Report `json:"cache,omitempty"`
+	Bundle                      string        `json:"bundle,omitempty"`
+	BuildID                     string        `json:"build_id,omitempty"`
+	PageID                      string        `json:"page_id"`
+	Output                      string        `json:"output"`
+	Width, Height               int
 }
 
 func (s *Service) Build(ctx context.Context, r BuildRequest) (BuildResult, error) {
@@ -63,8 +70,24 @@ func (s *Service) Build(ctx context.Context, r BuildRequest) (BuildResult, error
 	}
 	p := snapshot.Pages[selected]
 	base := filepath.Dir(p.File)
+	// The built-in service freezes dependencies before planning. Injected adapters
+	// remain uncached until their service supplies an equivalent snapshot boundary.
+	_, builtinRaster := s.raster.(adapters.Builtin)
+	_, builtinMeasure := s.measurer.(adapters.Builtin)
+	useCache := !r.NoCache && builtinRaster && builtinMeasure
+	var store *cache.Store
+	if useCache {
+		root := r.CacheDir
+		if root == "" {
+			root = filepath.Join(filepath.Dir(r.ProjectFile), ".paneltree", "cache")
+		}
+		store, err = cache.Open(root)
+		if err != nil {
+			return BuildResult{}, err
+		}
+	}
 	var stage *export.Stage
-	if r.BundleRoot != "" {
+	if r.BundleRoot != "" || useCache {
 		if _, ok := s.raster.(adapters.Builtin); !ok {
 			return BuildResult{}, fmt.Errorf("portable bundle requires built-in rasterizer")
 		}
@@ -75,7 +98,11 @@ func (s *Service) Build(ctx context.Context, r BuildRequest) (BuildResult, error
 		if e != nil {
 			return BuildResult{}, e
 		}
-		stage, err = export.Prepare(ctx, r.BundleRoot, base, p.Page, original)
+		root := r.BundleRoot
+		if root == "" {
+			root = filepath.Join(store.Root, "staging")
+		}
+		stage, err = export.Prepare(ctx, root, base, p.Page, original)
 		if err != nil {
 			return BuildResult{}, err
 		}
@@ -95,21 +122,50 @@ func (s *Service) Build(ctx context.Context, r BuildRequest) (BuildResult, error
 	if raster == nil {
 		raster = adapters.Builtin{}
 	}
-	im, err := compose.Page(ctx, resolved, base, bg, raster)
+	var session *build.Session
+	var memo compose.Memo
+	if useCache {
+		session, err = build.New(ctx, store, raster.(render.CacheRasterizer), base, resolved)
+		if err != nil {
+			return BuildResult{}, err
+		}
+		raster = session
+		memo = session
+	}
+	im, err := compose.PageWithMemo(ctx, resolved, base, bg, raster, memo)
 	if err != nil {
 		return BuildResult{}, fmt.Errorf("page %s: %w", p.Page.ID, err)
 	}
-	if stage != nil {
-		bundle, id, e := stage.Complete(ctx, resolved, im)
+	result := BuildResult{PageID: string(p.Page.ID), Output: path, Width: im.Bounds().Dx(), Height: im.Bounds().Dy()}
+	var encoded []byte
+	if session != nil {
+		encoded, result.BuildID, err = session.Export(ctx, im, p.Page.Background)
+		if err != nil {
+			return BuildResult{}, err
+		}
+		result.Cache = &session.Report
+		result.LeafRenders = session.Report.LeafRenders
+		result.Recompositions = session.Report.Recompositions
+	}
+	if r.BundleRoot != "" {
+		bundle, id, e := stage.CompleteCached(ctx, resolved, im, encoded, result.BuildID)
 		if e != nil {
 			return BuildResult{}, e
 		}
-		return BuildResult{PageID: string(p.Page.ID), Output: filepath.Join(bundle, "page.png"), Bundle: bundle, BuildID: id, Width: im.Bounds().Dx(), Height: im.Bounds().Dy()}, nil
+		result.Output = filepath.Join(bundle, "page.png")
+		result.Bundle = bundle
+		result.BuildID = id
+		return result, nil
 	}
-	if err = export.PNG(ctx, path, im); err != nil {
+	if encoded != nil {
+		err = export.PNGBytes(ctx, path, encoded)
+	} else {
+		err = export.PNG(ctx, path, im)
+	}
+	if err != nil {
 		return BuildResult{}, err
 	}
-	return BuildResult{PageID: string(p.Page.ID), Output: path, Width: im.Bounds().Dx(), Height: im.Bounds().Dy()}, nil
+	return result, nil
 }
 func background(s string) (color.Color, error) {
 	if s == "" {

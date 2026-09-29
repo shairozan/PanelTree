@@ -2,6 +2,7 @@
 package export
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"image"
@@ -26,6 +27,14 @@ func (w writer) Write(p []byte) (int, error) {
 // PNG encodes beside the destination, then links the finished file exclusively.
 // Filesystems without hard-link support return an error, never an unsafe fallback.
 func PNG(ctx context.Context, path string, im image.Image) error {
+	return publish(ctx, path, func(w io.Writer) error { return png.Encode(w, im) })
+}
+
+func PNGBytes(ctx context.Context, path string, data []byte) error {
+	return publish(ctx, path, func(w io.Writer) error { _, err := io.Copy(w, bytes.NewReader(data)); return err })
+}
+
+func publish(ctx context.Context, path string, encode func(io.Writer) error) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -35,7 +44,7 @@ func PNG(ctx context.Context, path string, im image.Image) error {
 	}
 	defer func() { _ = os.Remove(f.Name()) }()
 	defer func() { _ = f.Close() }()
-	if err = png.Encode(writer{ctx, f}, im); err != nil {
+	if err = encode(writer{ctx, f}); err != nil {
 		return err
 	}
 	if err = f.Sync(); err != nil {

@@ -64,12 +64,21 @@ type Transform struct {
 
 // Source describes content rather than a vendor workflow.
 type Source struct {
-	Kind     string  `yaml:"kind" json:"kind"`
-	Path     string  `yaml:"path,omitempty" json:"path,omitempty"`
-	Text     string  `yaml:"text,omitempty" json:"text,omitempty"`
-	Font     string  `yaml:"font,omitempty" json:"font,omitempty"`
-	FontSize float64 `yaml:"font_size,omitempty" json:"font_size,omitempty"`
-	Color    string  `yaml:"color,omitempty" json:"color,omitempty"`
+	Draft    DraftRecipe `yaml:"draft,omitempty" json:"draft,omitempty"`
+	Kind     string      `yaml:"kind" json:"kind"`
+	Path     string      `yaml:"path,omitempty" json:"path,omitempty"`
+	Text     string      `yaml:"text,omitempty" json:"text,omitempty"`
+	Font     string      `yaml:"font,omitempty" json:"font,omitempty"`
+	FontSize float64     `yaml:"font_size,omitempty" json:"font_size,omitempty"`
+	Color    string      `yaml:"color,omitempty" json:"color,omitempty"`
+}
+
+// DraftRecipe changes only through an explicit authoring edit. Static adapters
+// ignore it visually; generative adapters consume Seed and retain Revision in
+// their production identity. Zero is a fixed value, never a randomize request.
+type DraftRecipe struct {
+	Revision uint64 `yaml:"revision,omitempty" json:"revision,omitempty"`
+	Seed     uint64 `yaml:"seed,omitempty" json:"seed,omitempty"`
 }
 type Layer struct {
 	ID        ID         `yaml:"id" json:"id"`

@@ -26,6 +26,8 @@ func projectCommand(verb string, root *cobra.Command) *cobra.Command {
 		cmd.Flags().StringVar(&inspection.Fit, "fit", "error", "output aspect policy: error, contain, or cover")
 	}
 	if verb == "build" {
+		cmd.Flags().StringVar(&build.CacheDir, "cache-dir", "", "content cache directory (defaults to .paneltree/cache beside input)")
+		cmd.Flags().BoolVar(&build.NoCache, "no-cache", false, "render without reading or writing the cache")
 		cmd.Flags().StringVar(&build.PageID, "page", "", "page ID (required for multi-page input)")
 		cmd.Flags().StringVar(&build.Output, "output", "", "new PNG destination; parent directory must exist")
 		cmd.Flags().StringVar(&build.BundleRoot, "bundle", "", "existing directory for a new portable editable bundle")

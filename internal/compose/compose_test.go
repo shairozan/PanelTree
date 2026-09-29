@@ -64,6 +64,20 @@ func TestSourceOverAndIsolatedGroupOpacity(t *testing.T) {
 	im = renderPage(t, page(leaf("bottom", "red"), top), f)
 	pixel(t, im, 2, 2, color.NRGBA{R: 127, B: 128, A: 255})
 }
+
+func TestPrintSizeStructuralContainersReuseSurfaces(t *testing.T) {
+	p := page(leaf("dot", "white"))
+	p.Canvas = model.Canvas{Width: 4096, Height: 4096}
+	p.Layout = model.Layout{Type: "row", Children: []model.Layout{{Panel: "panel"}}}
+	// A tiny authored frame makes pixel work cheap while retaining print-sized
+	// surfaces and the structural chain that previously exceeded the budget.
+	p.Panels[0].Layers[0].Frame = &model.Frame{Width: 0.001, Height: 0.001}
+	im := renderPage(t, p, fixture{"white": solid(color.NRGBA{R: 255, G: 255, B: 255, A: 255})})
+	if im.Bounds().Dx() != 4096 {
+		t.Fatal("wrong output size")
+	}
+	pixel(t, im, 0, 0, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
+}
 func TestNestedTransformsMaskAndPanelClip(t *testing.T) {
 	mask := image.NewNRGBA(image.Rect(0, 0, 2, 1))
 	mask.SetNRGBA(0, 0, color.NRGBA{A: 255})
