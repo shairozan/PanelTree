@@ -43,7 +43,9 @@ func New(ctx context.Context, store *cache.Store, raster render.CacheRasterizer,
 	s.root, err = s.plan(ctx, resolved.Tree())
 	return s, err
 }
-func request(n scene.ResolvedNode, o scene.Output, base string) render.Request {
+
+// LeafRequest derives a renderer request from composition's resolved leaf geometry.
+func LeafRequest(n scene.ResolvedNode, o scene.Output, base string) render.Request {
 	world := o.World.Multiply(n.World)
 	return render.Request{Source: *n.Source, Fit: n.Fit, BaseDir: base, Scene: scene.Context{Bounds: n.Bounds, PixelSize: model.Canvas{Width: n.Bounds.Width * math.Hypot(world[0], world[1]), Height: n.Bounds.Height * math.Hypot(world[2], world[3])}}}
 }
@@ -76,7 +78,7 @@ func (s *Session) plan(ctx context.Context, n scene.ResolvedNode) (string, error
 	clean.Mask = ""
 	var inputs []string
 	if n.Source != nil {
-		key, e := s.asset(ctx, request(n, s.Output, s.Base))
+		key, e := s.asset(ctx, LeafRequest(n, s.Output, s.Base))
 		if e != nil {
 			return "", e
 		}

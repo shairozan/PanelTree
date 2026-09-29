@@ -21,10 +21,11 @@ type LayerTarget struct {
 	Layer model.ID `json:"layer"`
 }
 type Operation struct {
-	Target   LayerTarget     `json:"target"`
-	Action   string          `json:"action"`
-	Scope    model.LockScope `json:"scope,omitempty"`
-	Artifact string          `json:"artifact,omitempty"`
+	Candidate string          `json:"candidate,omitempty"`
+	Target    LayerTarget     `json:"target"`
+	Action    string          `json:"action"`
+	Scope     model.LockScope `json:"scope,omitempty"`
+	Artifact  string          `json:"artifact,omitempty"`
 }
 type EditRequest struct {
 	ProjectFile      string         `json:"-"`
@@ -95,7 +96,7 @@ func (s *Service) Edit(ctx context.Context, r EditRequest) (EditResult, error) {
 					return nil, fmt.Errorf("one operation per layer per changeset")
 				}
 				seen[key] = true
-				if op.Action == "approve" || op.Action == "override" || op.Action == "clear-selection" {
+				if op.Action == "approve" || op.Action == "override" || op.Action == "clear-selection" || op.Action == "select-candidate" {
 					for owner, locked := range checked {
 						if locked.Lock != model.AssetLock && locked.Lock != model.AllLock {
 							continue
@@ -113,6 +114,24 @@ func (s *Service) Edit(ctx context.Context, r EditRequest) (EditResult, error) {
 					return nil, fmt.Errorf("layer %s requires explicit unlock", key)
 				}
 				switch op.Action {
+				case "select-candidate":
+					if len(r.Edits) != 0 || len(r.Operations) != 1 {
+						return nil, fmt.Errorf("candidate selection requires its own changeset")
+					}
+					if st.State == model.Approved || st.Manual != "" {
+						return nil, fmt.Errorf("clear approved/manual selection explicitly before selecting a candidate")
+					}
+					pin, e := s.candidate(ctx, w, op)
+					if e != nil {
+						return nil, e
+					}
+					st.Pin = pin
+					st.Manual = ""
+					st.State = model.Draft
+					st.Request, e = requestIdentity(n)
+					if e != nil {
+						return nil, e
+					}
 				case "lock":
 					scope := op.Scope
 					if scope == "" {
