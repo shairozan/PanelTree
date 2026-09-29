@@ -14,12 +14,20 @@ type Rasterizer interface {
 	Raster(context.Context, model.Source, string) (image.Image, error)
 }
 
+// SceneRasterizer receives the final assigned frame and desired leaf resolution.
+// Existing PNG adapters can keep implementing only Rasterizer.
+type SceneRasterizer interface {
+	RasterScene(context.Context, Request) (image.Image, error)
+}
+
 type Descriptor struct {
 	Name, Version string
 	SourceKinds   []string
 }
 type Dependency struct{ Path, ContentHash string }
 type Request struct {
+	Fit      string
+	BaseDir  string
 	Source   model.Source
 	Scene    scene.Context
 	Revision model.Revision

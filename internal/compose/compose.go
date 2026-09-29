@@ -101,7 +101,7 @@ func (e *engine) paint(dst *image.RGBA, n scene.ResolvedNode, depth int) error {
 		return fmt.Errorf("layer %s: %w", n.ID, err)
 	}
 	if n.Source != nil {
-		src, err := e.raster.Raster(e.ctx, *n.Source, e.base)
+		src, err := e.rasterLeaf(n, world)
 		if err != nil {
 			return fmt.Errorf("layer %s: %w", n.ID, err)
 		}
@@ -180,6 +180,13 @@ func (e *engine) paint(dst *image.RGBA, n scene.ResolvedNode, depth int) error {
 	}
 	draw.Draw(dst, e.rect, layer, image.Point{}, draw.Over)
 	return nil
+}
+
+func (e *engine) rasterLeaf(n scene.ResolvedNode, world scene.Matrix) (image.Image, error) {
+	if sized, ok := e.raster.(render.SceneRasterizer); ok {
+		return sized.RasterScene(e.ctx, render.Request{Source: *n.Source, Fit: n.Fit, BaseDir: e.base, Scene: scene.Context{Bounds: n.Bounds, PixelSize: model.Canvas{Width: n.Bounds.Width * math.Hypot(world[0], world[1]), Height: n.Bounds.Height * math.Hypot(world[2], world[3])}}})
+	}
+	return e.raster.Raster(e.ctx, *n.Source, e.base)
 }
 func edge(v float64) int {
 	half := math.Round(v*2) / 2

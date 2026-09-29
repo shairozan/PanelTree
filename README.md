@@ -6,7 +6,7 @@ Module: `github.com/shairozan/PanelTree`
 
 ## Status
 
-Sprint 03: strict YAML projects, recursive layout, resolved-scene inspection, and PNG page export with independent source layers, transforms, masks and group opacity. SVG/text rendering, caching, MCP and PDF exports remain planned.
+Sprint 04: strict YAML projects, recursive layout, PNG/SVG/basic-Latin lettering, and portable editable SVG bundles with preserved sources, masks, fonts and composition metadata. Caching, MCP and PDF exports remain planned.
 
 ## Development
 
@@ -20,6 +20,7 @@ go run ./cmd/paneltree validate my-book/project.yaml
 go run ./cmd/paneltree inspect my-book/project.yaml
 go run ./cmd/paneltree inspect my-book/project.yaml --width 1080 --height 1920 --fit contain
 go run ./cmd/paneltree build my-book/project.yaml --page page-01 --output my-book/page-01.png
+go run ./cmd/paneltree build my-book/project.yaml --page page-01 --bundle my-book
 go test ./...
 go build -o bin/paneltree ./cmd/paneltree
 ```
@@ -30,9 +31,11 @@ Commands are constructed by `internal/cli.Command()`; there is no `init()` regis
 
 Read [the schema](docs/schema.md), [architecture and CI](docs/architecture.md), and [engineering requirements](AGENTS.md). The canonical example is embedded from `internal/project/template`; initialization copies it with its fixture asset license.
 
-See [layout and measurement](docs/layout.md) for geometry, transforms and output-fit conventions. Text inspection requires an injected font-measurement provider; the CLI does not yet rasterize or measure fonts.
+See [layout and measurement](docs/layout.md) for geometry, transforms and output-fit conventions. The default service measures explicit-font lettering using the same wrapping plan as rendering.
 
 See [PNG rendering](docs/rendering.md) for masks, alpha, limits and output protection. Exports require a new destination file and preserve all source assets and layer definitions.
+
+See [SVG, lettering and editable bundles](docs/editable-bundles.md) for supported SVG coverage, font requirements, portable publication and external-edit limitations.
 
 ## Runtime configuration
 

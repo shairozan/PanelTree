@@ -109,3 +109,23 @@ func TestBuildCommand(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestBuildBundleCommand(t *testing.T) {
+	t.Setenv("PANELTREE_LOG_LEVEL", "")
+	dir := t.TempDir()
+	book := filepath.Join(dir, "book")
+	if _, err := executeProject(t, "init", book); err != nil {
+		t.Fatal(err)
+	}
+	output, err := executeProject(t, "build", filepath.Join(book, "project.yaml"), "--page", "page-01", "--bundle", dir, "--width", "120", "--height", "180")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var result struct{ Bundle string }
+	if err = json.Unmarshal([]byte(output), &result); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = os.Stat(filepath.Join(result.Bundle, "page.svg")); err != nil {
+		t.Fatal(err)
+	}
+}

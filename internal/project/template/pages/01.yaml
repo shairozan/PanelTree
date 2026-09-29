@@ -34,6 +34,17 @@ page:
               role: character
               source: {kind: image, path: ../assets/hero.png}
               frame: {x: 0.2, y: 0.1, width: 0.6, height: 0.9}
+        - id: lantern
+          role: prop
+          source: {kind: svg, path: ../assets/lantern.svg}
+          frame: {x: 0.7, y: 0.53, width: 0.17, height: 0.28}
+        - id: caption-box
+          source: {kind: svg, path: ../assets/caption.svg}
+          frame: {x: 0.04, y: 0.025, width: 0.92, height: 0.12}
+        - id: lettering
+          role: lettering
+          source: {kind: text, text: 'The moon is closer tonight.', font: ../assets/Go-Regular.ttf, font_size: 30, color: '#182539'}
+          frame: {x: 0.075, y: 0.058, width: 0.86, height: 0.085}
     - id: p2
       layers:
         - id: setting
@@ -50,6 +61,10 @@ page:
         - id: hero
           source: {kind: image, path: ../assets/hero.png}
           transform: {rotation: -12, scale_x: 0.85, scale_y: 0.85}
+        - id: surprise
+          role: fx
+          source: {kind: svg, path: ../assets/rays.svg}
+          frame: {x: 0.1, y: 0.06, width: 0.8, height: 0.17}
     - id: p4
       layers:
         - id: setting

@@ -4,6 +4,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"github.com/shairozan/PanelTree/internal/adapters"
 	"github.com/shairozan/PanelTree/internal/layout"
 	"github.com/shairozan/PanelTree/internal/project"
 	"github.com/shairozan/PanelTree/render"
@@ -43,7 +44,7 @@ func WithMeasurer(m scene.Measurer) ServiceOption      { return func(s *Service)
 func WithRasterizer(r render.Rasterizer) ServiceOption { return func(s *Service) { s.raster = r } }
 
 func NewService(options ...ServiceOption) *Service {
-	s := &Service{}
+	s := &Service{measurer: adapters.Builtin{}, raster: adapters.Builtin{}}
 	for _, option := range options {
 		option(s)
 	}

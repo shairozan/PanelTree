@@ -15,10 +15,13 @@ import (
 )
 
 type BuildRequest struct {
+	BundleRoot                       string
 	ProjectFile, PageID, Output, Fit string
 	Width, Height                    int
 }
 type BuildResult struct {
+	Bundle        string `json:"bundle,omitempty"`
+	BuildID       string `json:"build_id,omitempty"`
 	PageID        string `json:"page_id"`
 	Output        string `json:"output"`
 	Width, Height int
@@ -28,17 +31,19 @@ func (s *Service) Build(ctx context.Context, r BuildRequest) (BuildResult, error
 	if err := ctx.Err(); err != nil {
 		return BuildResult{}, err
 	}
-	if r.Output == "" {
-		return BuildResult{}, fmt.Errorf("output path is required")
+	if (r.Output == "") == (r.BundleRoot == "") {
+		return BuildResult{}, fmt.Errorf("choose exactly one output path or bundle root")
 	}
 	path, err := filepath.Abs(r.Output)
 	if err != nil {
 		return BuildResult{}, err
 	}
-	if _, err = os.Lstat(path); err == nil {
-		return BuildResult{}, fmt.Errorf("output already exists: %s", path)
-	} else if !os.IsNotExist(err) {
-		return BuildResult{}, err
+	if r.BundleRoot == "" {
+		if _, err = os.Lstat(path); err == nil {
+			return BuildResult{}, fmt.Errorf("output already exists: %s", path)
+		} else if !os.IsNotExist(err) {
+			return BuildResult{}, err
+		}
 	}
 	snapshot, err := project.Load(r.ProjectFile)
 	if err != nil {
@@ -58,6 +63,26 @@ func (s *Service) Build(ctx context.Context, r BuildRequest) (BuildResult, error
 	}
 	p := snapshot.Pages[selected]
 	base := filepath.Dir(p.File)
+	var stage *export.Stage
+	if r.BundleRoot != "" {
+		if _, ok := s.raster.(adapters.Builtin); !ok {
+			return BuildResult{}, fmt.Errorf("portable bundle requires built-in rasterizer")
+		}
+		if _, ok := s.measurer.(adapters.Builtin); !ok {
+			return BuildResult{}, fmt.Errorf("portable bundle requires built-in measurer")
+		}
+		original, e := adapters.ReadAsset(ctx, "", p.File, 1<<20)
+		if e != nil {
+			return BuildResult{}, e
+		}
+		stage, err = export.Prepare(ctx, r.BundleRoot, base, p.Page, original)
+		if err != nil {
+			return BuildResult{}, err
+		}
+		defer stage.Abort()
+		p.Page = stage.Page
+		base = stage.Dir
+	}
 	bg, err := background(p.Page.Background)
 	if err != nil {
 		return BuildResult{}, err
@@ -68,11 +93,18 @@ func (s *Service) Build(ctx context.Context, r BuildRequest) (BuildResult, error
 	}
 	raster := s.raster
 	if raster == nil {
-		raster = adapters.PNG{}
+		raster = adapters.Builtin{}
 	}
 	im, err := compose.Page(ctx, resolved, base, bg, raster)
 	if err != nil {
 		return BuildResult{}, fmt.Errorf("page %s: %w", p.Page.ID, err)
+	}
+	if stage != nil {
+		bundle, id, e := stage.Complete(ctx, resolved, im)
+		if e != nil {
+			return BuildResult{}, e
+		}
+		return BuildResult{PageID: string(p.Page.ID), Output: filepath.Join(bundle, "page.png"), Bundle: bundle, BuildID: id, Width: im.Bounds().Dx(), Height: im.Bounds().Dy()}, nil
 	}
 	if err = export.PNG(ctx, path, im); err != nil {
 		return BuildResult{}, err

@@ -1,5 +1,7 @@
 These original geometric fixtures were created for PanelTree:
 hero.svg, setting.svg, hero.png, setting.png, iris.png.
+caption.svg, lantern.svg, rays.svg are also original CC0 fixtures.
+Go-Regular.ttf is separately licensed; see Go-Regular.ttf.LICENSE.
 PNG fixtures are reproducible with tools/demo-assets from the repository root.
 They are dedicated to the public domain under CC0 1.0 Universal:
 https://creativecommons.org/publicdomain/zero/1.0/

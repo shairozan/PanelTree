@@ -3,6 +3,7 @@ package layout
 import (
 	"context"
 	"errors"
+	"github.com/shairozan/PanelTree/internal/adapters"
 	"github.com/shairozan/PanelTree/internal/project"
 	"github.com/shairozan/PanelTree/model"
 	"github.com/shairozan/PanelTree/scene"
@@ -56,7 +57,7 @@ func near(t *testing.T, got, want float64) {
 }
 
 func TestCanonicalFivePanelGeometry(t *testing.T) {
-	r, e := Resolve(context.Background(), demo(t), Options{})
+	r, e := Resolve(context.Background(), demo(t), Options{BaseDir: "../project/template/pages", Measurer: adapters.Builtin{}})
 	if e != nil {
 		t.Fatal(e)
 	}

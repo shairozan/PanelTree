@@ -28,6 +28,7 @@ func projectCommand(verb string, root *cobra.Command) *cobra.Command {
 	if verb == "build" {
 		cmd.Flags().StringVar(&build.PageID, "page", "", "page ID (required for multi-page input)")
 		cmd.Flags().StringVar(&build.Output, "output", "", "new PNG destination; parent directory must exist")
+		cmd.Flags().StringVar(&build.BundleRoot, "bundle", "", "existing directory for a new portable editable bundle")
 	}
 	bindErr := v.BindPFlag("log-level", root.PersistentFlags().Lookup("log-level"))
 	initialize := config.NewInitializer(&cfg, v, config.InitializerOptions{ConfigFlagName: "config"})

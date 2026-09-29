@@ -2,6 +2,7 @@
 package main
 
 import (
+	"golang.org/x/image/font/gofont/goregular"
 	"image"
 	"image/color"
 	"image/png"
@@ -11,6 +12,9 @@ import (
 
 func main() {
 	dir := "internal/project/template/assets"
+	if err := os.WriteFile(filepath.Join(dir, "Go-Regular.ttf"), goregular.TTF, 0644); err != nil {
+		panic(err)
+	}
 	setting := image.NewNRGBA(image.Rect(0, 0, 600, 600))
 	for y := 0; y < 600; y++ {
 		for x := 0; x < 600; x++ {
