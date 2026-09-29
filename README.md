@@ -6,7 +6,7 @@ Module: `github.com/shairozan/PanelTree`
 
 ## Status
 
-Initial scaffold: Cobra root command, invocation-local Viper configuration, and configuration lifecycle tests. Layout, rendering, MCP, and exports are planned and not implemented yet.
+Sprint 01: recursive authoring types, strict YAML loading, project initialization, validation and JSON inspection. Layout, rendering, MCP, and exports are planned and not implemented yet.
 
 ## Development
 
@@ -15,13 +15,18 @@ Use Go 1.27.1 or later.
 ```sh
 go run ./cmd/paneltree --help
 go run ./cmd/paneltree --version
+go run ./cmd/paneltree init my-book
+go run ./cmd/paneltree validate my-book/project.yaml
+go run ./cmd/paneltree inspect my-book/project.yaml
 go test ./...
 go build -o bin/paneltree ./cmd/paneltree
 ```
 
 On Windows, use `-o bin/paneltree.exe` when building.
 
-Commands are constructed by `internal/cli.Command()`; there is no `init()` registration. The root owns a fresh Viper instance. Its pre-run initializer populates a captured configuration pointer only after validation. The root currently displays help; it performs no production operations.
+Commands are constructed by `internal/cli.Command()`; there is no `init()` registration. Each executable command owns a fresh Viper instance. Its pre-run initializer populates a captured configuration pointer only after validation. `init` requires a new destination directory and never overwrites an existing project. `validate` and `inspect` accept a book, chapter or standalone page.
+
+Read [the schema](docs/schema.md), [architecture and CI](docs/architecture.md), and [engineering requirements](AGENTS.md). The canonical example is embedded from `internal/project/template`; initialization copies it with its fixture asset license.
 
 ## Runtime configuration
 

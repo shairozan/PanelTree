@@ -1,0 +1,4 @@
+schema: paneltree/v0.1
+chapter:
+  id: chapter-01
+  pages: [../pages/01.yaml, ../pages/02.yaml]

@@ -1,0 +1,39 @@
+schema: paneltree/v0.1
+page:
+  id: page-01
+  canvas: {width: 1200, height: 1800}
+  background: '#ffffff'
+  layout:
+    type: column
+    margin: 40
+    gutter: 24
+    children:
+      - type: row
+        size: {weight: 1}
+        gutter: 24
+        children:
+          - {panel: p1, size: {percent: 60}}
+          - {panel: p2, size: {percent: 40}}
+      - type: row
+        size: {weight: 1}
+        gutter: 24
+        children:
+          - {panel: p3, size: {weight: 1}}
+          - {panel: p4, size: {weight: 1}}
+          - {panel: p5, size: {weight: 1}}
+  panels:
+    - id: p1
+      layers:
+        - id: setting
+          role: environment
+          source: {kind: svg, path: ../assets/setting.svg}
+        - id: cast
+          children:
+            - id: hero
+              role: character
+              source: {kind: svg, path: ../assets/hero.svg}
+              frame: {x: 0.2, y: 0.1, width: 0.6, height: 0.9}
+    - {id: p2, layers: []}
+    - {id: p3, layers: []}
+    - {id: p4, layers: []}
+    - {id: p5, layers: []}

@@ -1,0 +1,4 @@
+These two original geometric SVG fixtures (hero.svg and setting.svg) were created for PanelTree.
+They are dedicated to the public domain under CC0 1.0 Universal:
+https://creativecommons.org/publicdomain/zero/1.0/
+This dedication applies only to these fixture assets, not the application's source code.

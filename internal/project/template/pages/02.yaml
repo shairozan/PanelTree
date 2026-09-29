@@ -1,0 +1,11 @@
+schema: paneltree/v0.1
+page:
+  id: page-02
+  canvas: {width: 1200, height: 1800}
+  layout: {panel: p1}
+  panels:
+    - id: p1
+      layers:
+        - id: hero
+          role: character
+          source: {kind: svg, path: ../assets/hero.svg}

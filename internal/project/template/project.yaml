@@ -1,0 +1,5 @@
+schema: paneltree/v0.1
+book:
+  id: demo-book
+  title: First Panels
+  chapters: [chapters/01.yaml]

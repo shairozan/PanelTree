@@ -32,6 +32,9 @@ func Command() *cobra.Command {
 		}
 		return initialize(cmd, args)
 	}
+	for _, verb := range []string{"init", "validate", "inspect"} {
+		cmd.AddCommand(projectCommand(verb, cmd))
+	}
 	return cmd
 }
 
