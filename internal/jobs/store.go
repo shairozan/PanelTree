@@ -62,10 +62,10 @@ func Open(root string) (*Store, error) {
 	if e != nil {
 		return nil, e
 	}
-	if !strings.EqualFold(real, root) {
-		return nil, fmt.Errorf("job store must not traverse symlinks")
-	}
-	return &Store{Root: root}, nil
+	// Ancestor aliases (including macOS temporary directories and Windows short
+	// names) are valid roots. Anchor subsequent containment checks at the resolved
+	// directory so every spelling uses the same store and ownership locks.
+	return &Store{Root: real}, nil
 }
 func digest(data []byte) string { return fmt.Sprintf("%x", sha256.Sum256(data)) }
 func validID(id string) bool {

@@ -1,7 +1,9 @@
 # Sprint 07 verification
 
-Implementation for GitHub issue #7 is local and uncommitted. No push, issue
-closure, release or tag was performed. Hosted checks for this change are unverified.
+The initial implementation reached hosted CI, where Windows and macOS job tests
+failed on filesystem path aliases. The portability correction below is local and
+uncommitted; hosted checks for that correction remain unverified. No issue closure,
+release or tag was performed as part of the correction.
 
 ## Red–green evidence
 
@@ -59,3 +61,24 @@ renderer-version compatibility, conservative dependency resolution and storage
 ownership. Recovery covers process interruption, not power loss or hostile store
 modification. There is no daemon, remote scheduler, ComfyUI transport or automatic
 job garbage collection. Candidate completion never changes selected artwork.
+
+## CI path-alias correction
+
+The store rejected any root whose resolved spelling differed from its original
+path. Valid Windows short names and Unix symlinked parent directories therefore
+failed with `job store must not traverse symlinks`. `Open` now retains the resolved
+root for subsequent storage and lock operations. Application workspace checks
+still reject symlinks within the project-owned job path.
+
+`TestOpenThroughParentAlias` reproduced that exact behavioral failure on Windows
+using a short-name alias before the production fix, then passed after it. The
+Unix fixture uses a symlinked parent. The test also verifies canonical root
+identity and durable job reuse through both names. Windows filesystems without
+short-name aliases skip that fixture. Earlier junction-fixture resolution errors
+were environment failures and are not counted as red evidence.
+
+After the correction, full `go test ./... -count=1`, `go vet ./...`, pinned lint
+(0 issues), and `git diff --check` passed. Job tests cross-compiled for Linux and
+macOS; those binaries were not executed locally. Independent skill-based review
+found no actionable issues. Hosted Windows/macOS tests and Linux race checks
+must still pass on the corrected commit.

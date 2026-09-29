@@ -15,6 +15,35 @@ import (
 	"time"
 )
 
+func TestOpenThroughParentAlias(t *testing.T) {
+	base := t.TempDir()
+	target := filepath.Join(base, "real")
+	if err := os.MkdirAll(filepath.Join(target, "jobs"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	alias := parentAlias(t, base, target)
+	s, err := Open(filepath.Join(alias, "jobs"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	real, err := filepath.EvalSymlinks(filepath.Join(target, "jobs"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.Root != real {
+		t.Fatalf("store root %q, want canonical %q", s.Root, real)
+	}
+	j := submit(t, s, "aliased-parent")
+	other, err := Open(real)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := submit(t, other, "aliased-parent")
+	if got.ID != j.ID {
+		t.Fatal("aliases did not share the same durable job")
+	}
+}
+
 func TestJobOwnerProcess(t *testing.T) {
 	root := os.Getenv("PANELTREE_TEST_JOB_OWNER")
 	if root == "" {
