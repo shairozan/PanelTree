@@ -15,7 +15,7 @@ func TestDirectProjectServices(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	request := InspectRequest(created)
+	request := InspectRequest{ProjectFile: created.ProjectFile}
 	result, err := s.Validate(ctx, request)
 	if err != nil || !result.Valid || result.PageCount != 2 {
 		t.Fatalf("validate: %+v %v", result, err)

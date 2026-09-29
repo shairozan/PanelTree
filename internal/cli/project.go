@@ -13,11 +13,17 @@ func projectCommand(verb string, root *cobra.Command) *cobra.Command {
 	var cfg *config.Config
 	v := viper.New()
 	service := app.NewService()
+	var inspection app.InspectRequest
 	use := verb + " [project.yaml]"
 	if verb == "init" {
 		use = "init [new-directory]"
 	}
 	cmd := &cobra.Command{Use: use, Short: map[string]string{"init": "Create a new example book", "validate": "Validate a book, chapter or page", "inspect": "Inspect the validated tree as JSON"}[verb], Args: cobra.ExactArgs(1)}
+	if verb == "inspect" {
+		cmd.Flags().IntVar(&inspection.Width, "width", 0, "output pixel width (requires height)")
+		cmd.Flags().IntVar(&inspection.Height, "height", 0, "output pixel height (requires width)")
+		cmd.Flags().StringVar(&inspection.Fit, "fit", "error", "output aspect policy: error, contain, or cover")
+	}
 	bindErr := v.BindPFlag("log-level", root.PersistentFlags().Lookup("log-level"))
 	initialize := config.NewInitializer(&cfg, v, config.InitializerOptions{ConfigFlagName: "config"})
 	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
@@ -35,7 +41,8 @@ func projectCommand(verb string, root *cobra.Command) *cobra.Command {
 		case "validate":
 			result, err = service.Validate(cmd.Context(), app.InspectRequest{ProjectFile: args[0]})
 		case "inspect":
-			result, err = service.Inspect(cmd.Context(), app.InspectRequest{ProjectFile: args[0]})
+			inspection.ProjectFile = args[0]
+			result, err = service.Inspect(cmd.Context(), inspection)
 		}
 		if err != nil {
 			return err

@@ -58,3 +58,39 @@ func TestChildCommandConfigurationAndHelp(t *testing.T) {
 		t.Fatalf("init ran before validation: %v", err)
 	}
 }
+
+func TestInspectResolvedBoundsAndOutputFit(t *testing.T) {
+	t.Setenv("PANELTREE_LOG_LEVEL", "")
+	dest := filepath.Join(t.TempDir(), "book")
+	if _, err := executeProject(t, "init", dest); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dest, "project.yaml")
+	output, err := executeProject(t, "inspect", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var result struct {
+		Scenes []struct {
+			Scene struct {
+				Root   struct{ Children []json.RawMessage }
+				Output struct{ Width, Height int }
+			}
+		}
+	}
+	if err := json.Unmarshal([]byte(output), &result); err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Scenes) != 2 {
+		t.Fatalf("inspect omitted resolved scenes: %s", output)
+	}
+	if result.Scenes[0].Scene.Output.Width != 1200 || len(result.Scenes[0].Scene.Root.Children) == 0 {
+		t.Fatal("missing output or geometry")
+	}
+	if _, err := executeProject(t, "inspect", path, "--width", "1080", "--height", "1920"); err == nil {
+		t.Fatal("implicit aspect change accepted")
+	}
+	if _, err := executeProject(t, "inspect", path, "--width", "1080", "--height", "1920", "--fit", "contain"); err != nil {
+		t.Fatal(err)
+	}
+}
