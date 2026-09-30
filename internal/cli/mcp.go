@@ -2,6 +2,7 @@ package cli
 
 import (
 	protocol "github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/shairozan/PanelTree/app"
 	"github.com/shairozan/PanelTree/internal/config"
 	server "github.com/shairozan/PanelTree/internal/mcp"
 	"github.com/spf13/cobra"
@@ -32,7 +33,11 @@ func mcpCommand(root *cobra.Command) *cobra.Command {
 		return initialize(cmd, args)
 	}
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
-		s, e := server.New(cfg.MCPRoots)
+		service, e := app.NewRuntimeService(cfg.ComfyURL, cfg.ComfyProfile)
+		if e != nil {
+			return e
+		}
+		s, e := server.NewWithService(cfg.MCPRoots, service)
 		if e != nil {
 			return e
 		}

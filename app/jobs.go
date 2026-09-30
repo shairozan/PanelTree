@@ -22,15 +22,32 @@ import (
 	"runtime"
 )
 
-type Job = jobs.Job
+type Job struct {
+	jobs.Job
+	GenerationProvenance *GenerationProvenance `json:"generation_provenance,omitempty"`
+}
+type GenerationProvenance struct {
+	BackendIdentity string            `json:"backend_identity"`
+	Adapter         string            `json:"adapter"`
+	Profile         string            `json:"profile"`
+	ProfileHash     string            `json:"profile_hash"`
+	Models          map[string]string `json:"models"`
+	Seed            uint64            `json:"seed"`
+	Output          string            `json:"output"`
+	Width           int               `json:"width"`
+	Height          int               `json:"height"`
+}
 type JobDiagnostic = jobs.Diagnostic
 type RendererCapability struct {
+	OutputKinds []string `json:"output_kinds,omitempty"`
+	Profile     string   `json:"profile,omitempty"`
 	Name        string   `json:"name"`
 	Version     string   `json:"version"`
 	SourceKinds []string `json:"source_kinds"`
 	Available   bool     `json:"available"`
 }
 type AssetRequest struct {
+	Generation               *render.Generation
 	ProjectFile              string
 	ExpectedRevision         model.Revision
 	Target                   LayerTarget
@@ -49,19 +66,24 @@ type SelectCandidateRequest struct {
 }
 
 func (s *Service) Renderers() []RendererCapability {
-	return []RendererCapability{{Name: "builtin", Version: "static/v1/" + runtime.Version(), SourceKinds: []string{"image", "svg", "text"}, Available: true}, {Name: "comfyui", SourceKinds: []string{"generated"}, Available: false}}
+	caps := []RendererCapability{{Name: "builtin", Version: "static/v1/" + runtime.Version(), SourceKinds: []string{"image", "svg", "text"}, Available: true}, {Name: "comfyui", Version: adapters.ComfyVersion, SourceKinds: []string{"generated"}, OutputKinds: []string{"rgb"}, Available: s.comfy != nil}}
+	if s.comfy != nil {
+		caps[1].Profile = s.comfy.Profile.Name + "/" + s.comfy.Profile.Revision
+	}
+	return caps
 }
 
 type assetInput struct {
-	Version         string            `json:"version"`
-	Target          LayerTarget       `json:"target"`
-	Renderer        string            `json:"renderer"`
-	RendererVersion string            `json:"renderer_version"`
-	Request         render.Request    `json:"request"`
-	Files           map[string][]byte `json:"files"`
-	Width, Height   int
-	Fit             string
-	Fingerprint     string `json:"fingerprint"`
+	GenerationRecipe *adapters.ComfyRecipe `json:"generation_recipe,omitempty"`
+	Version          string                `json:"version"`
+	Target           LayerTarget           `json:"target"`
+	Renderer         string                `json:"renderer"`
+	RendererVersion  string                `json:"renderer_version"`
+	Request          render.Request        `json:"request"`
+	Files            map[string][]byte     `json:"files"`
+	Width, Height    int
+	Fit              string
+	Fingerprint      string `json:"fingerprint"`
 }
 
 func jobStore(w *workspace.Session) (*jobs.Store, error) {
@@ -80,10 +102,13 @@ func (s *Service) RequestAsset(ctx context.Context, r AssetRequest) (Job, error)
 	if r.Renderer == "" {
 		r.Renderer = "builtin"
 	}
-	if r.Renderer != "builtin" {
+	if r.Renderer != "builtin" && (r.Renderer != "comfyui" || s.comfy == nil) {
 		return Job{}, &JobDiagnostic{Code: "renderer_unavailable", Message: "renderer " + r.Renderer + " is unavailable"}
 	}
-	var j Job
+	if r.Renderer == "builtin" && r.Generation != nil {
+		return Job{}, &JobDiagnostic{Code: "invalid_input", Message: "builtin renderer does not accept generation requests"}
+	}
+	var j jobs.Job
 	e := workspace.Open(ctx, r.ProjectFile, func(w *workspace.Session) error {
 		if w.Entry != w.Owner {
 			return &JobDiagnostic{Code: "invalid_project", Message: "submit against the owning project"}
@@ -98,7 +123,7 @@ func (s *Service) RequestAsset(ctx context.Context, r AssetRequest) (Job, error)
 			if e = json.Unmarshal(payload, &original); e != nil {
 				return e
 			}
-			if prior.Revision != r.ExpectedRevision || original.Target != r.Target || original.Renderer != r.Renderer || original.Width != r.Width || original.Height != r.Height || original.Fit != r.Fit {
+			if prior.Revision != r.ExpectedRevision || original.Target != r.Target || original.Renderer != r.Renderer || original.Width != r.Width || original.Height != r.Height || original.Fit != r.Fit || hash(original.Request.Generation) != hash(r.Generation) {
 				return &JobDiagnostic{Code: "idempotency_conflict", Message: "key already identifies a different request"}
 			}
 			j = prior
@@ -122,28 +147,39 @@ func (s *Service) RequestAsset(ctx context.Context, r AssetRequest) (Job, error)
 		j, e = store.Submit(ctx, r.IdempotencyKey, w.Snapshot.Revision, data)
 		return e
 	})
-	return j, e
+	if e != nil {
+		return Job{}, e
+	}
+	return s.Job(ctx, JobRequest{ProjectFile: r.ProjectFile, ID: j.ID})
 }
 func (s *Service) Job(ctx context.Context, r JobRequest) (Job, error) {
 	store, e := s.openJobs(ctx, r.ProjectFile)
 	if e != nil {
 		return Job{}, e
 	}
-	return store.Get(ctx, r.ID)
+	j, e := store.Get(ctx, r.ID)
+	if e != nil {
+		return Job{}, e
+	}
+	return describeJob(ctx, store, j)
 }
 func (s *Service) Jobs(ctx context.Context, project string) ([]Job, error) {
 	store, e := s.openJobs(ctx, project)
 	if e != nil {
 		return nil, e
 	}
-	return store.List(ctx)
+	return describeJobs(ctx, store)
 }
 func (s *Service) CancelJob(ctx context.Context, r JobRequest) (Job, error) {
 	store, e := s.openJobs(ctx, r.ProjectFile)
 	if e != nil {
 		return Job{}, e
 	}
-	return store.Cancel(ctx, r.ID)
+	j, e := store.Cancel(ctx, r.ID)
+	if e != nil {
+		return Job{}, e
+	}
+	return describeJob(ctx, store, j)
 }
 func (s *Service) RunJobs(ctx context.Context, r RunJobsRequest) ([]Job, error) {
 	store, e := s.openJobs(ctx, r.ProjectFile)
@@ -154,6 +190,9 @@ func (s *Service) RunJobs(ctx context.Context, r RunJobsRequest) ([]Job, error) 
 		var input assetInput
 		if e := json.Unmarshal(payload, &input); e != nil {
 			return nil, e
+		}
+		if input.Renderer == "comfyui" {
+			return s.runGeneration(ctx, input, progress)
 		}
 		if input.Version != "asset-job/v1" || input.Renderer != "builtin" || input.RendererVersion != s.Renderers()[0].Version {
 			return nil, &JobDiagnostic{Code: "renderer_unavailable", Message: "submitted renderer version is unavailable"}
@@ -210,7 +249,38 @@ func (s *Service) RunJobs(ctx context.Context, r RunJobsRequest) ([]Job, error) 
 	if e != nil {
 		return nil, e
 	}
-	return store.List(ctx)
+	return describeJobs(ctx, store)
+}
+
+func describeJob(ctx context.Context, store *jobs.Store, j jobs.Job) (Job, error) {
+	out := Job{Job: j}
+	_, payload, e := store.Lookup(ctx, j.Key)
+	if e != nil {
+		return out, e
+	}
+	var input assetInput
+	if e = json.Unmarshal(payload, &input); e != nil {
+		return out, e
+	}
+	if r := input.GenerationRecipe; r != nil {
+		out.GenerationProvenance = &GenerationProvenance{BackendIdentity: r.Profile.BackendIdentity, Adapter: r.Adapter, Profile: r.Profile.Name + "/" + r.Profile.Revision, ProfileHash: r.ProfileHash, Models: r.Profile.Models, Seed: r.Generation.Seed, Output: r.Generation.Output, Width: r.Width, Height: r.Height}
+	}
+	return out, nil
+}
+func describeJobs(ctx context.Context, store *jobs.Store) ([]Job, error) {
+	list, e := store.List(ctx)
+	if e != nil {
+		return nil, e
+	}
+	out := make([]Job, 0, len(list))
+	for _, j := range list {
+		described, e := describeJob(ctx, store, j)
+		if e != nil {
+			return nil, e
+		}
+		out = append(out, described)
+	}
+	return out, nil
 }
 func (s *Service) SelectCandidate(ctx context.Context, r SelectCandidateRequest) (EditResult, error) {
 	store, e := s.openJobs(ctx, r.ProjectFile)
@@ -291,6 +361,7 @@ func (s *Service) snapshotAsset(ctx context.Context, w *workspace.Session, r Ass
 		}
 		request := build.LeafRequest(*leaf, resolved.Output(), "")
 		request.Revision = w.Snapshot.Revision
+		request.Generation = r.Generation
 		files := map[string][]byte{}
 		for _, rel := range []string{request.Source.Path, request.Source.Font} {
 			if rel == "" {
@@ -303,6 +374,17 @@ func (s *Service) snapshotAsset(ctx context.Context, w *workspace.Session, r Ass
 			files[rel] = data
 		}
 		input = assetInput{Version: "asset-job/v1", Target: r.Target, Renderer: r.Renderer, RendererVersion: s.Renderers()[0].Version, Request: request, Files: files, Width: r.Width, Height: r.Height, Fit: r.Fit}
+		if r.Renderer == "comfyui" {
+			if s.comfy == nil {
+				return input, &JobDiagnostic{Code: "renderer_unavailable", Message: "ComfyUI is not configured"}
+			}
+			recipe, e := s.comfy.Freeze(request)
+			if e != nil {
+				return input, e
+			}
+			input.GenerationRecipe = &recipe
+			input.RendererVersion = adapters.ComfyVersion
+		}
 		input.Fingerprint = hash(input)
 		return input, nil
 	}
@@ -328,7 +410,7 @@ func (s *Service) candidate(ctx context.Context, w *workspace.Session, op Operat
 	if input.Target != op.Target {
 		return "", &JobDiagnostic{Code: "invalid_target", Message: "candidate belongs to another layer"}
 	}
-	current, e := s.snapshotAsset(ctx, w, AssetRequest{Target: op.Target, Renderer: input.Renderer, Width: input.Width, Height: input.Height, Fit: input.Fit})
+	current, e := s.snapshotAsset(ctx, w, AssetRequest{Target: op.Target, Renderer: input.Renderer, Width: input.Width, Height: input.Height, Fit: input.Fit, Generation: input.Request.Generation})
 	if e != nil {
 		return "", e
 	}
@@ -339,4 +421,29 @@ func (s *Service) candidate(ctx context.Context, w *workspace.Session, op Operat
 		return "", e
 	}
 	return asset.Put(w.Root, data)
+}
+
+func (s *Service) runGeneration(ctx context.Context, input assetInput, progress func(int) error) ([]byte, error) {
+	if input.Version != "asset-job/v1" || input.RendererVersion != adapters.ComfyVersion || input.GenerationRecipe == nil || s.comfy == nil {
+		return nil, &JobDiagnostic{Code: "renderer_unavailable", Message: "submitted ComfyUI renderer is unavailable"}
+	}
+	// Frozen workflows execute only against their declared backend/model environment.
+	if hash(s.comfy.Profile) != hash(input.GenerationRecipe.Profile) {
+		return nil, &JobDiagnostic{Code: "renderer_unavailable", Message: "configured generation profile changed since submission"}
+	}
+	if e := progress(20); e != nil {
+		return nil, e
+	}
+	im, e := s.comfy.Generate(ctx, *input.GenerationRecipe)
+	if e != nil {
+		return nil, e
+	}
+	if e = progress(80); e != nil {
+		return nil, e
+	}
+	var out bytes.Buffer
+	if e = png.Encode(&out, im); e != nil {
+		return nil, e
+	}
+	return out.Bytes(), ctx.Err()
 }

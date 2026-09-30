@@ -6,7 +6,7 @@ Module: `github.com/shairozan/PanelTree`
 
 ## Status
 
-MVP (Sprint 09): strict YAML projects, recursive layout, PNG/SVG/basic-Latin lettering, portable editable SVG bundles, incremental builds, revision-aware editing, durable local asset jobs, and a local stdio MCP server. Runs locally without AI services. Generation, web editing, PDF and motion exports remain planned.
+MVP (Sprint 09): strict YAML projects, recursive layout, PNG/SVG/basic-Latin lettering, portable editable SVG bundles, incremental builds, revision-aware editing, durable local asset jobs, and a local stdio MCP server. Runs locally without AI services. Sprint 10 adds optional ComfyUI RGB draft generation and explicit selection. Web editing, PDF and motion exports remain planned.
 
 Start with the [fresh-checkout walkthrough](docs/getting-started.md), [contributing](CONTRIBUTING.md), and [MVP acceptance matrix](docs/acceptance.md).
 
@@ -48,6 +48,9 @@ durable artwork pins, manual overrides, scoped locks, and interruption recovery.
 
 See [durable asset jobs](docs/jobs.md) for renderer discovery, frozen requests,
 bounded execution, cancellation, recovery, and explicit candidate selection.
+
+See [ComfyUI generation](docs/comfyui.md) for optional RGB drafts, versioned
+profiles, backend/model/seed provenance and an opt-in real-backend smoke test.
 
 See [local MCP authoring](docs/mcp.md) for client setup, allowed roots, tools,
 resources, previews, cancellation, and protocol error handling.

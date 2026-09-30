@@ -8,7 +8,8 @@ application services available to future interfaces.
 
 Run `paneltree renderers` to discover capabilities. The `builtin` renderer supports
 PNG image, SVG and basic-Latin text sources under the existing renderer limits.
-`comfyui` is advertised as unavailable; requesting it or an unknown renderer
+`comfyui` is available when configured through [runtime profiles](comfyui.md);
+otherwise requesting it or an unknown renderer
 returns a typed `app.JobDiagnostic` with code `renderer_unavailable`. The CLI
 prints diagnostic errors as `code: message`; successful command results are JSON.
 
@@ -91,4 +92,5 @@ This supports local process interruption, not power-loss durability, network
 filesystems, distributed scheduling, concurrent external modification of store
 files, or automatic garbage collection. Source snapshotting does not coordinate
 external editors. Frozen requests require the recorded renderer/runtime version;
-a different version fails safely. ComfyUI transport is outside Sprint 07.
+a different version fails safely. See [ComfyUI transport](comfyui.md) for
+generation profiles, backend retry/cancellation limits and provenance.
