@@ -2,12 +2,55 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"github.com/shairozan/PanelTree/internal/jobs"
 	"github.com/shairozan/PanelTree/model"
 	"os"
 	"path/filepath"
 	"testing"
 )
+
+func TestJobRendererOnlyReadsFrozenFiles(t *testing.T) {
+	s, p, i := editFixture(t)
+	ctx := context.Background()
+	_, e := s.RequestAsset(ctx, AssetRequest{ProjectFile: p, ExpectedRevision: i.Revision, Target: target(), IdempotencyKey: "original", Width: 120, Height: 180})
+	if e != nil {
+		t.Fatal(e)
+	}
+	store, e := jobs.Open(filepath.Join(filepath.Dir(p), ".paneltree", "jobs"))
+	if e != nil {
+		t.Fatal(e)
+	}
+	_, data, e := store.Lookup(ctx, "original")
+	if e != nil {
+		t.Fatal(e)
+	}
+	var input assetInput
+	if e = json.Unmarshal(data, &input); e != nil {
+		t.Fatal(e)
+	}
+	input.Request.Source.Path = filepath.Join(filepath.Dir(p), "assets", "hero.png")
+	input.Files = nil
+	payload, e := json.Marshal(input)
+	if e != nil {
+		t.Fatal(e)
+	}
+	injected, e := store.Submit(ctx, "outside-frozen", i.Revision, payload)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if _, e = s.RunJobs(ctx, RunJobsRequest{ProjectFile: p, Workers: 1}); e != nil {
+		t.Fatal(e)
+	}
+	j, e := s.Job(ctx, JobRequest{ProjectFile: p, ID: injected.ID})
+	if e != nil {
+		t.Fatal(e)
+	}
+	if j.State != "failed" {
+		t.Fatalf("renderer read unfrozen file: %+v", j)
+	}
+}
 
 func TestAssetJobStaticCapabilities(t *testing.T) {
 	for _, layer := range []string{"hero", "lantern", "lettering"} {

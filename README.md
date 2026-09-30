@@ -6,7 +6,7 @@ Module: `github.com/shairozan/PanelTree`
 
 ## Status
 
-Sprint 07: strict YAML projects, recursive layout, PNG/SVG/basic-Latin lettering, portable editable SVG bundles, incremental builds, revision-aware editing, and durable local asset jobs. MCP and PDF exports remain planned.
+Sprint 08: strict YAML projects, recursive layout, PNG/SVG/basic-Latin lettering, portable editable SVG bundles, incremental builds, revision-aware editing, durable local asset jobs, and a local stdio MCP server. PDF exports remain planned.
 
 ## Development
 
@@ -44,6 +44,9 @@ durable artwork pins, manual overrides, scoped locks, and interruption recovery.
 
 See [durable asset jobs](docs/jobs.md) for renderer discovery, frozen requests,
 bounded execution, cancellation, recovery, and explicit candidate selection.
+
+See [local MCP authoring](docs/mcp.md) for client setup, allowed roots, tools,
+resources, previews, cancellation, and protocol error handling.
 
 ## Runtime configuration
 

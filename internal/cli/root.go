@@ -39,6 +39,7 @@ func Command() *cobra.Command {
 		cmd.AddCommand(editCommand(verb, cmd))
 	}
 	cmd.AddCommand(jobCommands(cmd)...)
+	cmd.AddCommand(mcpCommand(cmd))
 	return cmd
 }
 

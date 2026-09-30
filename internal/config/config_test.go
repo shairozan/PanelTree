@@ -9,6 +9,16 @@ import (
 	"github.com/spf13/viper"
 )
 
+func TestMCPRootsRuntimeConfig(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "runtime.yaml")
+	if e := os.WriteFile(p, []byte("mcp-roots: ['/books']\n"), 0600); e != nil {
+		t.Fatal(e)
+	}
+	if _, e := Resolve(viper.New(), p); e != nil {
+		t.Fatal(e)
+	}
+}
+
 func TestInitializerPrecedence(t *testing.T) {
 	for _, tc := range []struct {
 		name, file, env, flag, want string

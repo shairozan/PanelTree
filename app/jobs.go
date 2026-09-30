@@ -163,6 +163,17 @@ func (s *Service) RunJobs(ctx context.Context, r RunJobsRequest) ([]Job, error) 
 			return nil, e
 		}
 		defer func() { _ = os.RemoveAll(dir) }()
+		for _, rel := range []string{input.Request.Source.Path, input.Request.Source.Font} {
+			if rel == "" {
+				continue
+			}
+			if _, e := workspace.SafePath(dir, rel); e != nil {
+				return nil, e
+			}
+			if _, ok := input.Files[rel]; !ok {
+				return nil, &JobDiagnostic{Code: "invalid_input", Message: "renderer dependency is absent from frozen inputs"}
+			}
+		}
 		for rel, data := range input.Files {
 			path, e := workspace.SafePath(dir, rel)
 			if e != nil {

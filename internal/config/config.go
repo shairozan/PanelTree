@@ -10,7 +10,8 @@ import (
 
 // Config holds typed runtime settings. Treat it as read-only after initialization.
 type Config struct {
-	LogLevel string `mapstructure:"log-level"`
+	MCPRoots []string `mapstructure:"mcp-roots"`
+	LogLevel string   `mapstructure:"log-level"`
 }
 
 // InitializerOptions identifies the flag selecting the runtime configuration file.
