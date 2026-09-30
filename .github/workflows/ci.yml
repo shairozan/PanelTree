@@ -19,6 +19,17 @@ jobs:
           go-version-file: go.mod
       - run: go test -count=1 ./...
       - run: go vet ./...
+      - run: go build -trimpath -o bin/ ./cmd/paneltree
+  fuzz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go test ./internal/project -run '^$' -fuzz '^FuzzStrictDocument$' -fuzztime=10s -parallel=2
+      - run: go test ./internal/layout -run '^$' -fuzz '^FuzzLayoutGeometry$' -fuzztime=10s -parallel=2
   race:
     runs-on: ubuntu-latest
     steps:

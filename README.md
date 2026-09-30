@@ -6,7 +6,11 @@ Module: `github.com/shairozan/PanelTree`
 
 ## Status
 
-Sprint 08: strict YAML projects, recursive layout, PNG/SVG/basic-Latin lettering, portable editable SVG bundles, incremental builds, revision-aware editing, durable local asset jobs, and a local stdio MCP server. PDF exports remain planned.
+MVP (Sprint 09): strict YAML projects, recursive layout, PNG/SVG/basic-Latin lettering, portable editable SVG bundles, incremental builds, revision-aware editing, durable local asset jobs, and a local stdio MCP server. Runs locally without AI services. Generation, web editing, PDF and motion exports remain planned.
+
+Start with the [fresh-checkout walkthrough](docs/getting-started.md), [contributing](CONTRIBUTING.md), and [MVP acceptance matrix](docs/acceptance.md).
+
+Original application code is [MIT licensed](LICENSE). Dependencies, fonts and artwork retain their own terms; see [licensing](docs/licensing.md) and [third-party notices](THIRD_PARTY_NOTICES.txt).
 
 ## Development
 

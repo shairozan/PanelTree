@@ -1,0 +1,2 @@
+# gofmt expects LF on every platform, including Windows checkouts.
+*.go text eol=lf

@@ -1,23 +1,34 @@
-# Sprint 01 contracts
+# Architecture and adapter contracts
 
-- `model`: versioned authoring data and stable ID/revision/state/lock types, with no renderer-vendor fields.
-- `scene`: geometry, measurement/layout interfaces and resolved-node skeletons. No layout algorithm is implemented yet.
-- `render`: leaf descriptor, declared dependencies, typed request and artifact interfaces. No renderer is implemented yet.
-- `internal/project`: strict loading, semantic validation, ordered reference resolution and creation from an embedded canonical fixture.
-- `app`: typed Init/Validate/Inspect operations callable by CLI or future MCP/web adapters.
-- `internal/cli`: command factories with independent Viper/pre-run configuration pointers and JSON results. Commands do not duplicate parsing logic.
+The authoring tree is Book → Chapter → Page → Panel → Layer/Component. YAML owns content and intent; resolved geometry, editorial state, cached work and exports are separate representations.
 
-The loaded document tree remains separate from the future resolved scene and build graph. No geometry, generated pixels, cache hits, edits or approval enforcement are implied by the contract skeletons. Evolve the public pre-1.0 types through runnable fixtures rather than treating them as a frozen plugin ABI.
+| Package | Responsibility |
+| --- | --- |
+| `model`, `internal/project` | Backend-neutral schema, IDs, strict loading and embedded demo |
+| `scene`, `internal/layout` | Measure with assigned constraints, arrange recursively, return immutable scenes |
+| `render`, `internal/adapters` | Leaf contracts and bounded PNG/SVG/text rendering |
+| `internal/compose` | Transforms, clipping, masks, isolated groups and source-over composition |
+| `internal/build`, `internal/cache` | Production/composition/export recipes and immutable blobs |
+| `internal/workspace`, `internal/asset` | Revision transactions, recovery, ownership and protected artwork |
+| `internal/jobs` | Frozen inputs, bounded workers, durable status and owner-death recovery |
+| `internal/export` | Protected PNG publication and portable editable SVG/source bundles |
+| `app` | Shared project, edit, job and build policy |
+| `internal/cli`, `internal/mcp` | Cobra/Viper factories and root-constrained local stdio MCP |
 
-## Development gates
+Parents assign frames/context; leaves render for the final composition. ComfyUI does not own page planning, state or scheduling. It is an unavailable future capability, not an MVP prerequisite.
 
-Follow `AGENTS.md`: mandatory red–green TDD, independent review using `.agents/skills/paneltree-code-review/SKILL.md`, formatting, tests, vet and golangci-lint. Install the CI-pinned linter with:
+## Adapter boundary
 
-```sh
-go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
-golangci-lint run
-go test ./...
-go vet ./...
-```
+`render.Rasterizer` returns read-only existing pixels. `SceneRasterizer` also receives final logical bounds, requested pixel size, fit, source recipe and revision. Placement, clipping, masks and group opacity belong to the compositor. Adapters must honor cancellation, bound inputs/output allocations, and never mutate authoring files or select candidates automatically.
 
-CI runs on every push/PR, with native tests on Windows, macOS and Linux and race tests on Linux. The release workflow runs the full CI suite before cross-compiling six CGO-disabled binaries (amd64/arm64 for Windows/macOS/Linux). A pushed version tag such as `v0.1.0` produces downloadable Actions artifacts and per-binary SHA-256 checksums. It does not automatically publish a GitHub Release or push a tag. Hosted execution and branch protection are separate from committing workflow files.
+`CacheRasterizer.CacheRecipe` identifies every consumed byte dependency, algorithm/model/workflow version, explicit seed/revision and relevant context. Exclude machine paths and timestamps. Freeze dependencies until rendering completes; fail explicitly when unavailable. See [incremental builds](incremental-builds.md). The default service currently caches only its built-in renderer/measurer. Injection through `app.WithRasterizer`/`WithMeasurer` does not register a durable-job backend or editable SVG implementation.
+
+`render.Renderer` describes future artifact generation (descriptor, dependencies, request/result). It is not a functioning plugin loader. Integration requires capability discovery, frozen job inputs, executor dispatch and candidate validation, plus tests for stale results and protected selections. Endpoint/credentials belong in runtime configuration, outside story YAML. No generic registration or ComfyUI network execution exists yet.
+
+Public types are pre-1.0 contracts that can evolve with documented migrations and runnable fixtures; no stable third-party ABI is promised.
+
+## Development and CI
+
+Follow [AGENTS.md](../AGENTS.md) and [CONTRIBUTING.md](../CONTRIBUTING.md). Every push/PR runs tests, vet and native executable builds on Windows/macOS/Linux, Linux race checks, bounded YAML/layout fuzzing, lint and formatting. The executable acceptance test drives the compiled CLI and real stdio MCP server.
+
+Semantic-version tags run the full CI gate before producing six CGO-disabled binaries (amd64/arm64 for Windows/macOS/Linux), SHA-256 checksums, LICENSE and third-party notices. Actions artifacts are downloadable; workflows do not publish GitHub Releases or create/push tags. Hosted results and branch protection are separate from local validation. Release publishing needs explicit authorization.
