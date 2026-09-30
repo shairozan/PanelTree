@@ -6,7 +6,7 @@ The authoring tree is Book → Chapter → Page → Panel → Layer/Component. Y
 | --- | --- |
 | `model`, `internal/project` | Backend-neutral schema, IDs, strict loading and embedded demo |
 | `scene`, `internal/layout` | Measure with assigned constraints, arrange recursively, return immutable scenes |
-| `render`, `internal/adapters` | Leaf contracts and bounded PNG/SVG/text rendering |
+| `render`, `internal/adapters` | Leaf contracts, bounded PNG/SVG/text rendering and optional ComfyUI drafts |
 | `internal/compose` | Transforms, clipping, masks, isolated groups and source-over composition |
 | `internal/build`, `internal/cache` | Production/composition/export recipes and immutable blobs |
 | `internal/workspace`, `internal/asset` | Revision transactions, recovery, ownership and protected artwork |
@@ -15,7 +15,7 @@ The authoring tree is Book → Chapter → Page → Panel → Layer/Component. Y
 | `app` | Shared project, edit, job and build policy |
 | `internal/cli`, `internal/mcp` | Cobra/Viper factories and root-constrained local stdio MCP |
 
-Parents assign frames/context; leaves render for the final composition. ComfyUI does not own page planning, state or scheduling. It is an unavailable future capability, not an MVP prerequisite.
+Parents assign frames/context; leaves render for the final composition. ComfyUI does not own page planning, state or scheduling. It is an optional RGB draft renderer, not an MVP prerequisite.
 
 ## Adapter boundary
 
@@ -23,7 +23,7 @@ Parents assign frames/context; leaves render for the final composition. ComfyUI 
 
 `CacheRasterizer.CacheRecipe` identifies every consumed byte dependency, algorithm/model/workflow version, explicit seed/revision and relevant context. Exclude machine paths and timestamps. Freeze dependencies until rendering completes; fail explicitly when unavailable. See [incremental builds](incremental-builds.md). The default service currently caches only its built-in renderer/measurer. Injection through `app.WithRasterizer`/`WithMeasurer` does not register a durable-job backend or editable SVG implementation.
 
-`render.Renderer` describes future artifact generation (descriptor, dependencies, request/result). It is not a functioning plugin loader. Integration requires capability discovery, frozen job inputs, executor dispatch and candidate validation, plus tests for stale results and protected selections. Endpoint/credentials belong in runtime configuration, outside story YAML. No generic registration or ComfyUI network execution exists yet.
+`render.Renderer` describes a future file-artifact contract (descriptor, dependencies, request/result); it is not a plugin loader. ComfyUI implements the scene raster/cache-recipe contracts and integrates with durable jobs through frozen profiles, capability discovery, executor dispatch and candidate validation. Endpoint/profile settings belong in runtime configuration, outside story YAML. Selected generated PNGs use the ordinary build/cache/export path. See [ComfyUI generation](comfyui.md) for provenance and transport limits. Generic third-party registration is not implemented.
 
 Public types are pre-1.0 contracts that can evolve with documented migrations and runnable fixtures; no stable third-party ABI is promised.
 

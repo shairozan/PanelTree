@@ -5,6 +5,7 @@ import (
 	"github.com/shairozan/PanelTree/app"
 	"github.com/shairozan/PanelTree/internal/config"
 	"github.com/shairozan/PanelTree/model"
+	"github.com/shairozan/PanelTree/render"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -25,6 +26,7 @@ func jobCommand(verb string, root *cobra.Command) *cobra.Command {
 	v := viper.New()
 	service := app.NewService()
 	var request app.AssetRequest
+	var generation render.Generation
 	var id, revision, page, panel, layer string
 	workers := 2
 	cmd := &cobra.Command{Use: verb + " [project.yaml]", Short: map[string]string{"request": "Queue a frozen leaf rendering request", "select": "Select a successful candidate at its original revision", "list": "List durable jobs", "status": "Read job progress and diagnostics", "cancel": "Cancel a queued or running job", "run": "Drain queued jobs with bounded workers", "renderers": "Discover available renderer capabilities"}[verb], Args: cobra.ExactArgs(1)}
@@ -36,6 +38,10 @@ func jobCommand(verb string, root *cobra.Command) *cobra.Command {
 		cmd.Flags().StringVar(&revision, "revision", "", "expected project revision")
 	}
 	if verb == "request" {
+		cmd.Flags().StringVar(&generation.Prompt, "prompt", "", "semantic prompt for a generated draft")
+		cmd.Flags().StringVar(&generation.NegativePrompt, "negative-prompt", "", "negative prompt (profile must support it)")
+		cmd.Flags().Uint64Var(&generation.Seed, "seed", 0, "explicit generation seed")
+		cmd.Flags().StringVar(&generation.Output, "output-kind", "rgb", "generation capability (rgb only)")
 		cmd.Flags().StringVar(&request.IdempotencyKey, "key", "", "idempotency key (required)")
 		cmd.Flags().StringVar(&request.Renderer, "renderer", "builtin", "renderer name")
 		cmd.Flags().StringVar(&page, "page", "", "page ID")
@@ -57,7 +63,12 @@ func jobCommand(verb string, root *cobra.Command) *cobra.Command {
 		if bindErr != nil {
 			return bindErr
 		}
-		return initialize(cmd, args)
+		if e := initialize(cmd, args); e != nil {
+			return e
+		}
+		var e error
+		service, e = app.NewRuntimeService(cfg.ComfyURL, cfg.ComfyProfile)
+		return e
 	}
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		var result any
@@ -67,6 +78,9 @@ func jobCommand(verb string, root *cobra.Command) *cobra.Command {
 		case "renderers":
 			result = service.Renderers()
 		case "request":
+			if request.Renderer == "comfyui" || cmd.Flags().Changed("prompt") || cmd.Flags().Changed("negative-prompt") || cmd.Flags().Changed("seed") || cmd.Flags().Changed("output-kind") {
+				request.Generation = &generation
+			}
 			request.ProjectFile = args[0]
 			request.ExpectedRevision = model.Revision(revision)
 			request.Target = app.LayerTarget{Page: model.ID(page), Panel: model.ID(panel), Layer: model.ID(layer)}

@@ -522,6 +522,9 @@ func (s *Store) execute(parent context.Context, j Job, handler Handler) error {
 		case current.CancelRequested || ctx.Err() != nil:
 			current.State = Cancelled
 			current.Diagnostic = &Diagnostic{"cancelled", "execution cancelled; no result published"}
+			if runErr != nil {
+				current.Diagnostic.Message += "; " + runErr.Error()
+			}
 		case runErr != nil:
 			current.State = Failed
 			current.Diagnostic = &Diagnostic{"execution_failed", runErr.Error()}

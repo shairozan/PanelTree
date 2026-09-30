@@ -3,6 +3,7 @@ package config
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -10,8 +11,10 @@ import (
 
 // Config holds typed runtime settings. Treat it as read-only after initialization.
 type Config struct {
-	MCPRoots []string `mapstructure:"mcp-roots"`
-	LogLevel string   `mapstructure:"log-level"`
+	ComfyURL     string   `mapstructure:"comfyui-url"`
+	ComfyProfile string   `mapstructure:"comfyui-profile"`
+	MCPRoots     []string `mapstructure:"mcp-roots"`
+	LogLevel     string   `mapstructure:"log-level"`
 }
 
 // InitializerOptions identifies the flag selecting the runtime configuration file.
@@ -53,6 +56,12 @@ func Resolve(v *viper.Viper, path string) (*Config, error) {
 	var cfg Config
 	if err := v.UnmarshalExact(&cfg); err != nil {
 		return nil, fmt.Errorf("decode runtime configuration: %w", err)
+	}
+	if (cfg.ComfyURL == "") != (cfg.ComfyProfile == "") {
+		return nil, fmt.Errorf("comfyui-url and comfyui-profile must be configured together")
+	}
+	if cfg.ComfyProfile != "" && !filepath.IsAbs(cfg.ComfyProfile) {
+		cfg.ComfyProfile = filepath.Join(filepath.Dir(path), cfg.ComfyProfile)
 	}
 	switch cfg.LogLevel {
 	case "debug", "info", "warn", "error":

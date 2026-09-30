@@ -36,11 +36,20 @@ type Descriptor struct {
 }
 type Dependency struct{ Path, ContentHash string }
 type Request struct {
-	Fit      string
-	BaseDir  string
-	Source   model.Source
-	Scene    scene.Context
-	Revision model.Revision
+	Generation *Generation `json:",omitempty"`
+	Fit        string
+	BaseDir    string
+	Source     model.Source
+	Scene      scene.Context
+	Revision   model.Revision
+}
+
+// Generation is a backend-neutral request for a draft candidate, never a selection.
+type Generation struct {
+	Prompt         string `json:"prompt"`
+	NegativePrompt string `json:"negative_prompt,omitempty"`
+	Seed           uint64 `json:"seed"`
+	Output         string `json:"output,omitempty"`
 }
 type Artifact struct {
 	Path, ContentHash string

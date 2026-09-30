@@ -39,7 +39,11 @@ func TestMCPProcess(t *testing.T) {
 		t.Skip("stdio subprocess helper")
 	}
 	cmd := Command()
-	cmd.SetArgs([]string{"mcp", "serve", "--root", root})
+	args := []string{"mcp", "serve", "--root", root}
+	if cfg := os.Getenv("PANELTREE_MCP_TEST_CONFIG"); cfg != "" {
+		args = append(args, "--config", cfg)
+	}
+	cmd.SetArgs(args)
 	if e := cmd.Execute(); e != nil {
 		_, _ = os.Stderr.WriteString(e.Error())
 		os.Exit(1)

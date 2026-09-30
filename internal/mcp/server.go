@@ -9,6 +9,7 @@ import (
 	protocol "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/shairozan/PanelTree/app"
 	"github.com/shairozan/PanelTree/model"
+	"github.com/shairozan/PanelTree/render"
 	"os"
 	"path/filepath"
 	"sort"
@@ -36,14 +37,15 @@ type editInput struct {
 	Operations []app.Operation    `json:"operations,omitempty"`
 }
 type assetInput struct {
-	Project  string          `json:"project_file"`
-	Revision model.Revision  `json:"expected_revision"`
-	Key      string          `json:"key"`
-	Target   app.LayerTarget `json:"target"`
-	Renderer string          `json:"renderer,omitempty"`
-	Width    int             `json:"width,omitempty"`
-	Height   int             `json:"height,omitempty"`
-	Fit      string          `json:"fit,omitempty"`
+	Generation *render.Generation `json:"generation,omitempty"`
+	Project    string             `json:"project_file"`
+	Revision   model.Revision     `json:"expected_revision"`
+	Key        string             `json:"key"`
+	Target     app.LayerTarget    `json:"target"`
+	Renderer   string             `json:"renderer,omitempty"`
+	Width      int                `json:"width,omitempty"`
+	Height     int                `json:"height,omitempty"`
+	Fit        string             `json:"fit,omitempty"`
 }
 type jobInput struct {
 	Project string `json:"project_file"`
@@ -85,8 +87,11 @@ type server struct {
 	resources map[string]bool
 }
 
-func New(roots []string) (*protocol.Server, error) {
-	s := &server{service: app.NewService(), gate: make(chan struct{}, 1), resources: map[string]bool{}}
+func New(roots []string, options ...app.ServiceOption) (*protocol.Server, error) {
+	return NewWithService(roots, app.NewService(options...))
+}
+func NewWithService(roots []string, service *app.Service) (*protocol.Server, error) {
+	s := &server{service: service, gate: make(chan struct{}, 1), resources: map[string]bool{}}
 	if len(roots) == 0 {
 		return nil, fmt.Errorf("at least one MCP root is required")
 	}
@@ -221,7 +226,7 @@ func New(roots []string) (*protocol.Server, error) {
 			if e != nil {
 				return e
 			}
-			out, e = s.service.RequestAsset(ctx, app.AssetRequest{ProjectFile: p, ExpectedRevision: in.Revision, IdempotencyKey: in.Key, Target: in.Target, Renderer: in.Renderer, Width: in.Width, Height: in.Height, Fit: in.Fit})
+			out, e = s.service.RequestAsset(ctx, app.AssetRequest{ProjectFile: p, ExpectedRevision: in.Revision, IdempotencyKey: in.Key, Target: in.Target, Renderer: in.Renderer, Width: in.Width, Height: in.Height, Fit: in.Fit, Generation: in.Generation})
 			return e
 		})
 		return out, e

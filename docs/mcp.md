@@ -62,7 +62,7 @@ Treat either error channel as failure; never infer success from transport succes
 | `project_open`, `project_inspect` | Read documents, IDs, revision, editorial states and resolved scenes from `project_file` |
 | `project_validate` | Validate `project_file` through shared policy |
 | `project_apply_changes` | Submit `project_file`, `expected_revision`, and optional `edits` / `operations` |
-| `renderer_list` | Discover available static renderers and unavailable ComfyUI capability |
+| `renderer_list` | Discover static renderers and configured ComfyUI RGB generation capability |
 | `asset_request` | Submit `project_file`, `expected_revision`, `key`, and `target`; optional renderer/output dimensions |
 | `asset_select` | Select a successful job with `project_file`, `id`, and `expected_revision` |
 | `build` | Export a page with `project_file`, `page`, and exactly one of `output` / `bundle` |
@@ -153,4 +153,5 @@ metadata changes can still produce operation errors. Discovery is limited to
 1,024 projects, project-tree checks to 100,000 entries, inbound protocol frames to
 8 MiB, and individual artifact reads to 32 MiB. Large projects may hit these
 limits. There is no daemon scheduling, resource subscription, automatic artifact
-cleanup, ComfyUI transport, or distributed execution.
+cleanup or distributed execution. Optional [ComfyUI generation](comfyui.md) uses
+host-configured profiles through the same asset/job/selection tools.
