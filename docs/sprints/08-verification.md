@@ -1,7 +1,8 @@
 # Sprint 08 verification
 
-Issue #8 implementation is local and uncommitted. No push, issue closure, release
-or tag was performed. Hosted checks for this change remain unverified.
+Issue #8 implementation reached hosted CI, which exposed the Windows polling
+race documented below. That correction is local and uncommitted; its hosted
+checks remain unverified. No issue closure, release or tag was performed.
 
 ## Red–green evidence
 
@@ -41,9 +42,9 @@ persisted manual overrides, changed artifact checksums, and bundle SVG retrieval
 Cancellation tests exercise a queued durable job and a protocol request blocked
 on a real workspace lock. A subsequent gated operation verifies that cancelled
 requests release the MCP service gate. Active queue execution with repeated status
-and cancellation calls passed ten repetitions locally. This does not disprove
-all possible filesystem scheduling races; transient external changes remain a
-documented limitation. Shared job tests cover running cancellation and owner death.
+and cancellation calls passed ten repetitions locally. That initial passing stress
+run did not catch the traversal race later reproduced in CI; see the correction
+below. Shared job tests cover running cancellation and owner death.
 
 - `gofmt` applied to changed Go sources.
 - `go test ./... -count=1`: passed.
@@ -62,3 +63,25 @@ they passed. Final documentation review is complete; no actionable findings rema
 See [MCP usage](../mcp.md) for root policy, protocol envelopes, startup, previews,
 recovery and remaining limits. The SDK's stdio protocol handles negotiation and
 cancellation; no ComfyUI or external model service is required for these tests.
+
+## Windows CI polling correction
+
+Hosted `TestRunningQueuePolling` failed when a worker removed a `.render-*`
+directory after tree enumeration but before the scanner opened it. The earlier
+review had flagged this scheduling possibility; local stress testing had not
+reproduced it.
+
+The deterministic regression removes an actual empty render directory between
+the walk callback and descent. Before the fix it failed with the same
+`open ... .render-completed: The system cannot find the file specified` error.
+Tree scanning now ignores only not-found errors for vanished entries and continues
+to inspect surviving siblings. Permission failures and other storage failures
+are still returned, and symlink/reparse checks remain enforced. Required project
+inputs still fail through their readers if missing.
+
+After the fix, the deterministic tests, active queue polling, and Windows
+implicit-dependency boundary tests passed 20 repetitions. Full
+`go test ./... -count=1`, `go vet ./...`, and pinned lint (0 issues) passed.
+Independent correction and documentation review found no actionable issues;
+`git diff --check` passed. Hosted CI needs to rerun against the
+corrected commit; the local CGO/race limitation is unchanged.

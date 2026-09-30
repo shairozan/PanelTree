@@ -8,6 +8,7 @@ import (
 	"github.com/shairozan/PanelTree/model"
 	"go.yaml.in/yaml/v3"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -101,9 +102,16 @@ func readFile(p string, limit int64) ([]byte, error) {
 // The MCP boundary rejects symlinks inside project metadata and assets rather
 // than allowing a redirected write. Configured root aliases are canonicalized.
 func (s *server) tree(root string) error {
+	return checkTree(root, filepath.WalkDir)
+}
+
+func checkTree(root string, walk func(string, fs.WalkDirFunc) error) error {
 	count := 0
-	return filepath.WalkDir(root, func(p string, d os.DirEntry, e error) error {
-		if os.IsNotExist(e) && p == root {
+	return walk(root, func(_ string, d os.DirEntry, e error) error {
+		// Workers can remove render staging directories between enumeration and
+		// descent. An absent entry has nothing to inspect; required project inputs
+		// are still validated by their readers. Preserve all other scan errors.
+		if os.IsNotExist(e) {
 			return nil
 		}
 		if e != nil {

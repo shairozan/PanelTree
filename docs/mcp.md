@@ -146,8 +146,10 @@ to project content beneath those directories; use narrow dedicated roots.
 
 An interrupted edit journal must be recovered with a trusted local CLI operation
 before MCP access (`recovery_required`). Job owner-death recovery remains automatic.
-Concurrent external metadata changes or disappearing temporary files can produce
-transient operation errors; poll again if appropriate. Discovery is limited to
+Tree preflight tolerates files/directories disappearing during enumeration, so
+normal worker cleanup does not interrupt status polling. Missing required inputs
+still fail when read, and permission/I/O errors remain errors. Concurrent external
+metadata changes can still produce operation errors. Discovery is limited to
 1,024 projects, project-tree checks to 100,000 entries, inbound protocol frames to
 8 MiB, and individual artifact reads to 32 MiB. Large projects may hit these
 limits. There is no daemon scheduling, resource subscription, automatic artifact
