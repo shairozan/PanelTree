@@ -1,0 +1,30 @@
+# API key is read from the host environment, never saved in project artwork.
+generation:
+  default-profile: story-character
+  providers:
+    ideogram:
+      api-key-env: IDEOGRAM_API_KEY
+      concurrency: 2
+      timeout: 5m
+  profiles:
+    story-character:
+      renderer: ideogram
+      model: ideogram-3
+      operation: character
+      rendering-speed: quality
+      magic-prompt: off
+      style-type: auto
+    story-background:
+      renderer: ideogram
+      model: ideogram-3
+      operation: generate
+      rendering-speed: quality
+      magic-prompt: off
+      style-type: auto
+    quick-character:
+      renderer: ideogram
+      model: ideogram-3
+      operation: character
+      rendering-speed: turbo
+      magic-prompt: off
+      style-type: auto

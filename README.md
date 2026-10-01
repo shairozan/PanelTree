@@ -78,3 +78,5 @@ go run ./cmd/paneltree --config runtime.yaml --log-level debug
 Precedence is explicit flags, environment, the selected file, then defaults. `PANELTREE_LOG_LEVEL` sets the log level through the environment. Valid values are `debug`, `info`, `warn`, and `error`; the setting is reserved for service logging as those services are added. No configuration file is required or automatically created. An explicit missing file or unknown configuration field is an error. Help and version do not load configuration.
 
 Runtime configuration is separate from book/page project definitions.
+
+For hosted generation with named profiles, see [Ideogram renderer](docs/ideogram.md) and [example runtime configuration](examples/ideogram/runtime.yaml).

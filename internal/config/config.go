@@ -3,6 +3,7 @@ package config
 
 import (
 	"fmt"
+	"github.com/shairozan/PanelTree/render"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
@@ -11,10 +12,11 @@ import (
 
 // Config holds typed runtime settings. Treat it as read-only after initialization.
 type Config struct {
-	ComfyURL     string   `mapstructure:"comfyui-url"`
-	ComfyProfile string   `mapstructure:"comfyui-profile"`
-	MCPRoots     []string `mapstructure:"mcp-roots"`
-	LogLevel     string   `mapstructure:"log-level"`
+	Generation   render.GenerationConfig `mapstructure:"generation"`
+	ComfyURL     string                  `mapstructure:"comfyui-url"`
+	ComfyProfile string                  `mapstructure:"comfyui-profile"`
+	MCPRoots     []string                `mapstructure:"mcp-roots"`
+	LogLevel     string                  `mapstructure:"log-level"`
 }
 
 // InitializerOptions identifies the flag selecting the runtime configuration file.

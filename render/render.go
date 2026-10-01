@@ -55,10 +55,13 @@ type ImageInput struct {
 
 // Generation is a backend-neutral request for a draft candidate, never a selection.
 type Generation struct {
-	Prompt         string `json:"prompt"`
-	NegativePrompt string `json:"negative_prompt,omitempty"`
-	Seed           uint64 `json:"seed"`
-	Output         string `json:"output,omitempty"`
+	Profile            string   `json:"profile,omitempty"`
+	CharacterReference string   `json:"character_reference,omitempty"`
+	StyleReferences    []string `json:"style_references,omitempty"`
+	Prompt             string   `json:"prompt"`
+	NegativePrompt     string   `json:"negative_prompt,omitempty"`
+	Seed               uint64   `json:"seed"`
+	Output             string   `json:"output,omitempty"`
 }
 type Artifact struct {
 	Path, ContentHash string

@@ -268,7 +268,7 @@ func NewWithService(roots []string, service *app.Service) (*protocol.Server, err
 		})
 		return out, e
 	})
-	for _, name := range []string{"jobs_status", "jobs_cancel"} {
+	for _, name := range []string{"jobs_status", "jobs_cancel", "jobs_resume"} {
 		bind(s, name, "Read or cancel a durable job", func(ctx context.Context, in jobInput) (app.Job, error) {
 			var out app.Job
 			e := s.guard(ctx, func() error {
@@ -277,9 +277,12 @@ func NewWithService(roots []string, service *app.Service) (*protocol.Server, err
 					return e
 				}
 				r := app.JobRequest{ProjectFile: p, ID: in.ID}
-				if name == "jobs_cancel" {
+				switch name {
+				case "jobs_cancel":
 					out, e = s.service.CancelJob(ctx, r)
-				} else {
+				case "jobs_resume":
+					out, e = s.service.ResumeJob(ctx, r)
+				default:
 					out, e = s.service.Job(ctx, r)
 				}
 				return e
@@ -287,6 +290,18 @@ func NewWithService(roots []string, service *app.Service) (*protocol.Server, err
 			return out, e
 		})
 	}
+	bind(s, "jobs_estimate", "Return a non-billing price quote for a frozen Ideogram job", func(ctx context.Context, in jobInput) (json.RawMessage, error) {
+		var out json.RawMessage
+		e := s.guard(ctx, func() error {
+			p, e := s.project(in.Project, nil)
+			if e != nil {
+				return e
+			}
+			out, e = s.service.EstimateJob(ctx, app.JobRequest{ProjectFile: p, ID: in.ID})
+			return e
+		})
+		return out, e
+	})
 	bind(s, "jobs_run", "Drain queued jobs with 1–8 workers; cancellation propagates", func(ctx context.Context, in runInput) ([]app.Job, error) {
 		var p string
 		e := s.guard(ctx, func() error { var e error; p, e = s.project(in.Project, nil); return e })

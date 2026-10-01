@@ -142,6 +142,9 @@ func (c *ComfyUI) Freeze(r render.Request) (ComfyRecipe, error) {
 		return out, fmt.Errorf("generation requires a prompt")
 	}
 	g := *r.Generation
+	if g.CharacterReference != "" || len(g.StyleReferences) > 0 {
+		return out, fmt.Errorf("ComfyUI profile does not support character-image/style-image options; use its explicit image bindings")
+	}
 	if len(g.Prompt) > 16384 || len(g.NegativePrompt) > 16384 {
 		return out, fmt.Errorf("generation prompt too long")
 	}

@@ -23,6 +23,7 @@ import (
 )
 
 type ReferenceRequest struct {
+	Anchor      string             `json:"anchor,omitempty"`
 	Generation  *render.Generation `json:"generation,omitempty"`
 	Width       int                `json:"width,omitempty"`
 	Height      int                `json:"height,omitempty"`
@@ -50,16 +51,17 @@ type ReferenceSet struct {
 	Published  map[string]ReferencePublication `json:"published"`
 }
 type ReferenceCandidate struct {
-	ImportAttempt   int                   `json:"import_attempt,omitempty"`
-	JobID           string                `json:"job_id,omitempty"`
-	Recipe          *adapters.ComfyRecipe `json:"recipe,omitempty"`
-	Rejected        bool                  `json:"rejected,omitempty"`
-	ApprovedAgainst map[string]string     `json:"approved_against"`
-	Slot            string                `json:"slot"`
-	Image           string                `json:"image"`
-	Parents         map[string]string     `json:"parents"`
-	License         string                `json:"license"`
-	Attribution     string                `json:"attribution"`
+	IdeogramRecipe  *adapters.IdeogramRecipe `json:"ideogram_recipe,omitempty"`
+	ImportAttempt   int                      `json:"import_attempt,omitempty"`
+	JobID           string                   `json:"job_id,omitempty"`
+	Recipe          *adapters.ComfyRecipe    `json:"recipe,omitempty"`
+	Rejected        bool                     `json:"rejected,omitempty"`
+	ApprovedAgainst map[string]string        `json:"approved_against"`
+	Slot            string                   `json:"slot"`
+	Image           string                   `json:"image"`
+	Parents         map[string]string        `json:"parents"`
+	License         string                   `json:"license"`
+	Attribution     string                   `json:"attribution"`
 }
 type ReferencePublication struct {
 	Candidates map[string]ReferenceCandidate `json:"candidates"`
@@ -75,6 +77,8 @@ type ImageProvenance struct {
 	SHA256 string `json:"sha256"`
 }
 type ImageCapability struct {
+	Roles         map[string]int          `json:"max_images_by_role,omitempty"`
+	RequiredRoles map[string]int          `json:"required_images_by_role,omitempty"`
 	MaxDimension  int                     `json:"max_dimension"`
 	Bindings      []adapters.ImageBinding `json:"bindings"`
 	Format        string                  `json:"format"`
@@ -309,7 +313,7 @@ func (s *Service) Reference(ctx context.Context, r ReferenceRequest) (ReferenceS
 			if e != nil {
 				return e
 			}
-			candidate := ReferenceCandidate{Slot: frozen.Request.Slot, Image: id, Parents: frozen.Parents, License: frozen.Request.License, Attribution: frozen.Request.Attribution, JobID: r.JobID, Recipe: input.GenerationRecipe}
+			candidate := ReferenceCandidate{Slot: frozen.Request.Slot, Image: id, Parents: frozen.Parents, License: frozen.Request.License, Attribution: frozen.Request.Attribution, JobID: r.JobID, Recipe: input.GenerationRecipe, IdeogramRecipe: input.IdeogramRecipe}
 			if id := hash(candidate); set.Candidates[id].Image == "" {
 				set.Candidates[id] = candidate
 			}
@@ -434,7 +438,19 @@ type referenceJob struct {
 }
 
 func (s *Service) requestReference(ctx context.Context, w *workspace.Session, r ReferenceRequest, set *ReferenceSet) error {
-	if s.comfy == nil {
+	renderer := "comfyui"
+	if r.Generation != nil && (r.Generation.Profile != "" || s.generation.DefaultProfile != "") {
+		renderer = ""
+	}
+	var err error
+	renderer, r.Generation, err = s.resolveGeneration(renderer, r.Generation)
+	if err != nil {
+		return err
+	}
+	if renderer == "ideogram" && (s.ideogram == nil || s.ideogram.APIKey == "") {
+		return fmt.Errorf("ideogram API key is not configured")
+	}
+	if renderer == "comfyui" && s.comfy == nil {
 		return fmt.Errorf("configure a ComfyUI profile")
 	}
 	store, e := jobStore(w)
@@ -474,6 +490,23 @@ func (s *Service) requestReference(ctx context.Context, w *workspace.Session, r 
 		return e
 	}
 	names, _ := referenceParents(r.Slot)
+	if renderer == "ideogram" && len(names) > 1 {
+		if r.Anchor == "" {
+			return fmt.Errorf("multiple parent views: select an explicit anchor slot")
+		}
+		found := false
+		for _, name := range names {
+			if name == r.Anchor {
+				found = true
+			}
+		}
+		if !found {
+			return fmt.Errorf("anchor must name a required approved parent")
+		}
+		names = []string{r.Anchor}
+	} else if r.Anchor != "" && (len(names) != 1 || names[0] != r.Anchor) {
+		return fmt.Errorf("invalid anchor slot")
+	}
 	ids := []string{}
 	for _, name := range names {
 		ids = append(ids, set.Candidates[parents[name]].Image)
@@ -500,13 +533,25 @@ func (s *Service) requestReference(ctx context.Context, w *workspace.Session, r 
 		if e != nil {
 			return e
 		}
-		req.ImageInputs = []render.ImageInput{{Role: "reference", SHA256: id, PNG: data}}
+		role := "reference"
+		if renderer == "ideogram" {
+			role = "character"
+		}
+		req.ImageInputs = []render.ImageInput{{Role: role, SHA256: id, PNG: data}}
 	}
-	recipe, e := s.comfy.Freeze(req)
-	if e != nil {
-		return e
+	input := assetInput{Version: "asset-job/v1", Renderer: renderer, Request: req, Reference: &referenceJob{Request: r, Parents: parents, Packing: packing}}
+	if renderer == "ideogram" {
+		if e = s.freezeIdeogram(w.Root, &input); e != nil {
+			return e
+		}
+	} else {
+		recipe, err := s.comfy.Freeze(req)
+		if err != nil {
+			return err
+		}
+		input.GenerationRecipe = &recipe
+		input.RendererVersion = adapters.ComfyVersion
 	}
-	input := assetInput{Version: "asset-job/v1", Renderer: "comfyui", RendererVersion: adapters.ComfyVersion, Request: req, GenerationRecipe: &recipe, Reference: &referenceJob{Request: r, Parents: parents, Packing: packing}}
 	data, e := json.Marshal(input)
 	if e != nil {
 		return e

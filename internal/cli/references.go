@@ -17,6 +17,11 @@ func referenceCommand(root *cobra.Command) *cobra.Command {
 	var service *app.Service
 	cmd := &cobra.Command{Use: "character-reference [project.yaml]", Short: "Create, inspect, import, request, collect, accept, reject or publish character references", Args: cobra.ExactArgs(1)}
 	f := cmd.Flags()
+	cmd.Flags().StringVar(&g.Profile, "generation-profile", "", "named generation profile")
+	cmd.Flags().StringVar(&g.CharacterReference, "character-image", "", "project-relative character PNG")
+	cmd.Flags().StringSliceVar(&g.StyleReferences, "style-image", nil, "project-relative style PNGs")
+
+	f.StringVar(&r.Anchor, "anchor", "", "approved parent slot used as the character reference")
 	f.StringVar(&r.Action, "action", "inspect", "reference action")
 	f.StringVar(&r.Set, "set", "", "reference set ID")
 	f.StringVar(&r.Revision, "revision", "", "expected reference revision")
@@ -44,7 +49,7 @@ func referenceCommand(root *cobra.Command) *cobra.Command {
 			return e
 		}
 		var e error
-		service, e = app.NewRuntimeService(cfg.ComfyURL, cfg.ComfyProfile)
+		service, e = app.NewRuntimeService(cfg.ComfyURL, cfg.ComfyProfile, cfg.Generation)
 		return e
 	}
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
