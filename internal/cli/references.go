@@ -18,8 +18,8 @@ func referenceCommand(root *cobra.Command) *cobra.Command {
 	cmd := &cobra.Command{Use: "character-reference [project.yaml]", Short: "Create, inspect, import, request, collect, accept, reject or publish character references", Args: cobra.ExactArgs(1)}
 	f := cmd.Flags()
 	cmd.Flags().StringVar(&g.Profile, "generation-profile", "", "named generation profile")
-	cmd.Flags().StringVar(&g.CharacterReference, "character-image", "", "project-relative character PNG")
-	cmd.Flags().StringSliceVar(&g.StyleReferences, "style-image", nil, "project-relative style PNGs")
+	cmd.Flags().StringVar(&g.CharacterReference, "character-image", "", "project-relative character PNG (4.5 edit source)")
+	cmd.Flags().StringSliceVar(&g.StyleReferences, "style-image", nil, "project-relative style PNGs (4.5 supporting references, in order)")
 
 	f.StringVar(&r.Anchor, "anchor", "", "approved parent slot used as the character reference")
 	f.StringVar(&r.Action, "action", "inspect", "reference action")

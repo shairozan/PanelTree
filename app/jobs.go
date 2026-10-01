@@ -48,6 +48,8 @@ type GenerationProvenance struct {
 }
 type JobDiagnostic = jobs.Diagnostic
 type RendererCapability struct {
+	Attribution           string           `json:"attribution,omitempty"`
+	UsagePolicy           string           `json:"usage_policy,omitempty"`
 	Model                 string           `json:"model,omitempty"`
 	Operation             string           `json:"operation,omitempty"`
 	ImageConditioning     *ImageCapability `json:"image_conditioning,omitempty"`
@@ -101,11 +103,17 @@ func (s *Service) Renderers() []RendererCapability {
 		p := s.generation.Profiles[name]
 		roles := map[string]int{"style": 10}
 		required := map[string]int{}
-		if p.Operation == "character" {
+		if p.Model == "ideogram-4-5" {
+			roles = map[string]int{"style": 0}
+			if p.Operation == "edit" {
+				roles["style"] = 4
+			}
+		}
+		if p.Operation == "character" || p.Operation == "edit" {
 			roles["character"] = 1
 			required["character"] = 1
 		}
-		caps = append(caps, RendererCapability{ImageConditioning: &ImageCapability{Roles: roles, RequiredRoles: required, Format: "PNG", MaxDimension: 8192, MaxPixels: 4 << 20, MaxTotalBytes: 32 << 20, Transport: "multipart", Packing: []string{"original/v1"}}, Name: "ideogram", Version: adapters.IdeogramVersion, Profile: name, Available: s.ideogram != nil && s.ideogram.APIKey != "", SourceKinds: []string{"generated"}, OutputKinds: []string{"rgb"}, Limitations: []string{"one character reference; identity and pixel reproducibility not guaranteed"}, Model: p.Model, Operation: p.Operation})
+		caps = append(caps, RendererCapability{Attribution: "Powered by Ideogram", UsagePolicy: "https://ideogram.ai/legal/usage-policy/", ImageConditioning: &ImageCapability{Roles: roles, RequiredRoles: required, Format: "PNG", MaxDimension: 8192, MaxPixels: 4 << 20, MaxTotalBytes: 32 << 20, Transport: "multipart", Packing: []string{"original/v1"}}, Name: "ideogram", Version: adapters.IdeogramVersion, Profile: name, Available: s.ideogram != nil && s.ideogram.APIKey != "", SourceKinds: []string{"generated"}, OutputKinds: []string{"rgb"}, Limitations: []string{"one character reference; identity and pixel reproducibility not guaranteed"}, Model: p.Model, Operation: p.Operation})
 	}
 	return caps
 }

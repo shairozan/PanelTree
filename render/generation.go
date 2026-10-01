@@ -14,6 +14,8 @@ type IdeogramConfig struct {
 	Timeout     string `mapstructure:"timeout"`
 }
 type GenerationProfile struct {
+	Quality     string `mapstructure:"quality" json:"quality,omitempty"`
+	Size        string `mapstructure:"size" json:"size,omitempty"`
 	Renderer    string `mapstructure:"renderer" json:"renderer"`
 	Model       string `mapstructure:"model" json:"model"`
 	Operation   string `mapstructure:"operation" json:"operation"`

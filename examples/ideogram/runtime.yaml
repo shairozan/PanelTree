@@ -9,22 +9,22 @@ generation:
   profiles:
     story-character:
       renderer: ideogram
-      model: ideogram-3
-      operation: character
-      rendering-speed: quality
+      model: ideogram-4-5
+      operation: edit
+      quality: high
       magic-prompt: off
-      style-type: auto
+      size: source
     story-background:
       renderer: ideogram
-      model: ideogram-3
+      model: ideogram-4-5
       operation: generate
-      rendering-speed: quality
+      quality: high
       magic-prompt: off
-      style-type: auto
+      size: auto
     quick-character:
       renderer: ideogram
-      model: ideogram-3
-      operation: character
-      rendering-speed: turbo
+      model: ideogram-4-5
+      operation: edit
+      quality: low
       magic-prompt: off
-      style-type: auto
+      size: source

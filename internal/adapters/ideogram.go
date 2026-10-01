@@ -34,6 +34,36 @@ type Ideogram struct {
 }
 
 func ValidateIdeogramProfile(p render.GenerationProfile) error {
+	if p.Renderer == "ideogram" && p.Model == "ideogram-4-5" {
+		if p.Operation != "generate" && p.Operation != "edit" {
+			return fmt.Errorf("4.5 operation must be generate or edit")
+		}
+		if p.Speed != "" || p.StyleType != "" {
+			return fmt.Errorf("4.5 uses quality, not rendering-speed or style-type")
+		}
+		switch p.Quality {
+		case "", "very_low", "low", "medium", "high":
+		default:
+			return fmt.Errorf("invalid 4.5 quality")
+		}
+		switch p.Size {
+		case "", "auto", "source":
+		default:
+			return fmt.Errorf("4.5 integration supports size auto or source")
+		}
+		switch p.MagicPrompt {
+		case "off", "on", "auto":
+		default:
+			return fmt.Errorf("invalid magic-prompt")
+		}
+		if p.Operation == "generate" && (p.Size == "source" || p.Quality == "very_low") {
+			return fmt.Errorf("source size and very_low quality require edit inputs")
+		}
+		return nil
+	}
+	if p.Quality != "" || p.Size != "" {
+		return fmt.Errorf("quality and size require Ideogram 4.5")
+	}
 	if p.Renderer != "ideogram" || p.Model != "ideogram-3" || (p.Operation != "generate" && p.Operation != "character") {
 		return fmt.Errorf("unsupported renderer/model/operation")
 	}
@@ -95,6 +125,10 @@ func FreezeIdeogram(name string, p render.GenerationProfile, r render.Request) (
 		return out, fmt.Errorf("ideogram profile supports RGB only")
 	}
 	g.Output = "rgb"
+	if p.Model == "ideogram-4-5" && g.NegativePrompt != "" {
+		return out, fmt.Errorf("4.5 does not support negative_prompt; describe the desired result in prompt")
+	}
+	g.StyleReferences = append([]string(nil), g.StyleReferences...)
 	w, h := r.Scene.PixelSize.Width, r.Scene.PixelSize.Height
 	if math.IsNaN(w) || math.IsNaN(h) || w < 1 || h < 1 || w > 8192 || h > 8192 || w*h > 4<<20 {
 		return out, fmt.Errorf("invalid generation dimensions")
@@ -108,6 +142,9 @@ func FreezeIdeogram(name string, p render.GenerationProfile, r render.Request) (
 		if d < distance {
 			best, distance = ratio, d
 		}
+	}
+	if p.Model == "ideogram-4-5" {
+		best = ""
 	}
 	out = IdeogramRecipe{Adapter: IdeogramVersion, ProfileName: name, Profile: p, Generation: g, AspectRatio: best}
 	characters, styles, total := 0, 0, 0
@@ -128,11 +165,23 @@ func FreezeIdeogram(name string, p render.GenerationProfile, r render.Request) (
 		if e != nil || cfg.Width < 1 || cfg.Height < 1 || cfg.Width > 8192 || cfg.Height > 8192 || int64(cfg.Width)*int64(cfg.Height) > 4<<20 {
 			return out, fmt.Errorf("reference must be a PNG within four megapixels")
 		}
+		if p.Model == "ideogram-4-5" && (cfg.Width > 6*cfg.Height || cfg.Height > 6*cfg.Width) {
+			return out, fmt.Errorf("4.5 reference aspect ratio must be between 1:6 and 6:1")
+		}
 		if _, e = png.Decode(bytes.NewReader(im.PNG)); e != nil {
 			return out, fmt.Errorf("invalid reference PNG")
 		}
 		im.PNG = bytes.Clone(im.PNG)
 		out.Images = append(out.Images, im)
+	}
+	if p.Model == "ideogram-4-5" {
+		if p.Operation == "generate" && len(out.Images) != 0 {
+			return out, fmt.Errorf("4.5 generate is text-only; use edit with an explicit source image")
+		}
+		if p.Operation == "edit" && (characters != 1 || styles > 4 || len(out.Images) == 0 || out.Images[0].Role != "character") {
+			return out, fmt.Errorf("4.5 edit requires one character/source image first and up to four supporting style images")
+		}
+		return out, nil
 	}
 	if styles > 10 || characters > 1 || (p.Operation == "character" && characters != 1) || (p.Operation == "generate" && characters != 0) {
 		return out, fmt.Errorf("profile requires %s inputs: character operation needs exactly one character; generate accepts style only", p.Operation)
@@ -160,8 +209,8 @@ func (c *Ideogram) endpoint(r IdeogramRecipe) string {
 	if base == "" {
 		base = "https://api.ideogram.ai"
 	}
-	path := "ideogram-3"
-	if r.Profile.Operation == "character" {
+	path := r.Profile.Model
+	if r.Profile.Model == "ideogram-3" && r.Profile.Operation == "character" {
 		path += "-character"
 	}
 	return base + "/v2/image/generate/" + path
@@ -213,6 +262,15 @@ func ideogramBody(r IdeogramRecipe) (*bytes.Buffer, string, error) {
 	var buf bytes.Buffer
 	w := multipart.NewWriter(&buf)
 	fields := map[string]string{"prompt": r.Generation.Prompt, "negative_prompt": r.Generation.NegativePrompt, "seed": strconv.FormatUint(r.Generation.Seed, 10), "aspect_ratio": r.AspectRatio, "rendering_speed": r.Profile.Speed, "magic_prompt": r.Profile.MagicPrompt, "style_type": r.Profile.StyleType, "num_images": "1", "async": "true"}
+	if r.Profile.Model == "ideogram-4-5" {
+		fields = map[string]string{"prompt": r.Generation.Prompt, "seed": strconv.FormatUint(r.Generation.Seed, 10), "magic_prompt": r.Profile.MagicPrompt, "num_images": "1", "async": "true"}
+		if r.Profile.Quality != "" {
+			fields["quality"] = r.Profile.Quality
+		}
+		if r.Profile.Size != "" {
+			fields["size"] = r.Profile.Size
+		}
+	}
 	for k, v := range fields {
 		if e := w.WriteField(k, v); e != nil {
 			return nil, "", e
@@ -222,6 +280,9 @@ func ideogramBody(r IdeogramRecipe) (*bytes.Buffer, string, error) {
 		field := "style_reference_images"
 		if im.Role == "character" {
 			field = "character_reference_images"
+		}
+		if r.Profile.Model == "ideogram-4-5" {
+			field = "images"
 		}
 		part, e := w.CreateFormFile(field, im.SHA256+".png")
 		if e != nil {

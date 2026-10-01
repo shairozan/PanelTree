@@ -39,8 +39,8 @@ func jobCommand(verb string, root *cobra.Command) *cobra.Command {
 	}
 	if verb == "request" {
 		cmd.Flags().StringVar(&generation.Profile, "generation-profile", "", "named generation profile")
-		cmd.Flags().StringVar(&generation.CharacterReference, "character-image", "", "project-relative character PNG")
-		cmd.Flags().StringSliceVar(&generation.StyleReferences, "style-image", nil, "project-relative style PNGs")
+		cmd.Flags().StringVar(&generation.CharacterReference, "character-image", "", "project-relative character PNG (4.5 edit source)")
+		cmd.Flags().StringSliceVar(&generation.StyleReferences, "style-image", nil, "project-relative style PNGs (4.5 supporting references, in order)")
 
 		cmd.Flags().StringVar(&generation.Prompt, "prompt", "", "semantic prompt for a generated draft")
 		cmd.Flags().StringVar(&generation.NegativePrompt, "negative-prompt", "", "negative prompt (profile must support it)")

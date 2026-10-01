@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"github.com/shairozan/PanelTree/render"
@@ -8,6 +9,8 @@ import (
 	"image/png"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -131,4 +134,172 @@ func TestIdeogramDiscoveryReportsImageRoles(t *testing.T) {
 		}
 	}
 	t.Fatal("ideogram missing")
+}
+
+func TestIdeogram45CandidateLifecycle(t *testing.T) {
+	_, path, view := editFixture(t)
+	t.Setenv("IDEOGRAM_API_KEY", "test-key")
+	cfg := render.GenerationConfig{DefaultProfile: "story", Profiles: map[string]render.GenerationProfile{"story": {Renderer: "ideogram", Model: "ideogram-4-5", Operation: "generate", MagicPrompt: "off"}}}
+	s, e := NewRuntimeService("", "", cfg)
+	if e != nil {
+		t.Fatal(e)
+	}
+	posts := 0
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v2/image/generate/ideogram-4-5":
+			posts++
+			_, _ = w.Write([]byte(`{"generation_id":"remote"}`))
+		case "/v2/generations/remote":
+			_ = json.NewEncoder(w).Encode(map[string]any{"generation_id": "remote", "status": "completed", "data": []any{map[string]any{"is_image_safe": true, "url": server.URL + "/image"}}})
+		case "/image":
+			_ = png.Encode(w, image.NewNRGBA(image.Rect(0, 0, 1024, 1024)))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	s.ideogram.BaseURL = server.URL
+	s.ideogram.Client = server.Client()
+	ctx := context.Background()
+	req := AssetRequest{ProjectFile: path, ExpectedRevision: view.Revision, Target: target(), IdempotencyKey: "ideogram", Renderer: "ideogram", Generation: &render.Generation{Prompt: "castle", Seed: 42}, Width: 120, Height: 180}
+	job, e := s.RequestAsset(ctx, req)
+	if e != nil {
+		t.Fatal(e)
+	}
+	duplicate, e := s.RequestAsset(ctx, req)
+	if e != nil || duplicate.ID != job.ID {
+		t.Fatalf("duplicate %v", e)
+	}
+	changed := cfg.Profiles["story"]
+	changed.Speed = "turbo"
+	s.generation.Profiles["story"] = changed
+	if _, e = s.RunJobs(ctx, RunJobsRequest{path, 1}); e != nil {
+		t.Fatal(e)
+	}
+	job, e = s.Job(ctx, JobRequest{path, job.ID})
+	if e != nil || job.State != "succeeded" {
+		t.Fatalf("job %+v: %v", job, e)
+	}
+	if job.GenerationProvenance == nil || job.GenerationProvenance.Adapter != "ideogram/v1" {
+		t.Fatal("missing provenance")
+	}
+	s = NewService()
+	if _, e = s.SelectCandidate(ctx, SelectCandidateRequest{ProjectFile: path, JobID: job.ID, ExpectedRevision: view.Revision}); e != nil {
+		t.Fatal(e)
+	}
+	var execution map[string]any
+	if e = json.Unmarshal(job.Execution, &execution); e != nil {
+		t.Fatal(e)
+	}
+	if execution["result"] == nil {
+		t.Fatal("provider result metadata was not retained")
+	}
+	if posts != 1 {
+		t.Fatalf("posts %d", posts)
+	}
+}
+
+func TestIdeogram45Discovery(t *testing.T) {
+	cfg := render.GenerationConfig{Profiles: map[string]render.GenerationProfile{"edit": {Renderer: "ideogram", Model: "ideogram-4-5", Operation: "edit", MagicPrompt: "off"}}}
+	s, e := NewRuntimeService("", "", cfg)
+	if e != nil {
+		t.Fatal(e)
+	}
+	for _, cap := range s.Renderers() {
+		if cap.Name == "ideogram" {
+			if cap.ImageConditioning.Roles["style"] != 4 || cap.ImageConditioning.RequiredRoles["character"] != 1 {
+				t.Fatal("wrong 4.5 limits")
+			}
+			b, _ := json.Marshal(cap)
+			var fields map[string]any
+			_ = json.Unmarshal(b, &fields)
+			if fields["attribution"] != "Powered by Ideogram" || fields["usage_policy"] != "https://ideogram.ai/legal/usage-policy/" {
+				t.Fatal("missing provider attribution/policy")
+			}
+			return
+		}
+	}
+	t.Fatal("missing renderer")
+}
+
+func TestIdeogram45EditCandidateLifecycle(t *testing.T) {
+	_, path, view := editFixture(t)
+	t.Setenv("IDEOGRAM_API_KEY", "test-key")
+	cfg := render.GenerationConfig{DefaultProfile: "story", Profiles: map[string]render.GenerationProfile{"story": {Renderer: "ideogram", Model: "ideogram-4-5", Operation: "edit", MagicPrompt: "off", Quality: "high", Size: "source"}}}
+	s, e := NewRuntimeService("", "", cfg)
+	if e != nil {
+		t.Fatal(e)
+	}
+	posts := 0
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v2/image/generate/ideogram-4-5":
+			posts++
+			if e := r.ParseMultipartForm(1 << 20); e != nil {
+				t.Error(e)
+				return
+			}
+			defer func() { _ = r.MultipartForm.RemoveAll() }()
+			if r.FormValue("quality") != "high" || r.FormValue("size") != "source" || len(r.MultipartForm.File["images"]) != 1 {
+				t.Error("edit recipe not preserved")
+			}
+			_, _ = w.Write([]byte(`{"generation_id":"remote"}`))
+		case "/v2/generations/remote":
+			_ = json.NewEncoder(w).Encode(map[string]any{"generation_id": "remote", "status": "completed", "data": []any{map[string]any{"is_image_safe": true, "url": server.URL + "/image"}}})
+		case "/image":
+			_ = png.Encode(w, image.NewNRGBA(image.Rect(0, 0, 1024, 1024)))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	s.ideogram.BaseURL = server.URL
+	s.ideogram.Client = server.Client()
+	var source bytes.Buffer
+	if e := png.Encode(&source, image.NewNRGBA(image.Rect(0, 0, 64, 96))); e != nil {
+		t.Fatal(e)
+	}
+	if e := os.WriteFile(filepath.Join(filepath.Dir(path), "source.png"), source.Bytes(), 0600); e != nil {
+		t.Fatal(e)
+	}
+	ctx := context.Background()
+	req := AssetRequest{ProjectFile: path, ExpectedRevision: view.Revision, Target: target(), IdempotencyKey: "ideogram", Renderer: "ideogram", Generation: &render.Generation{Prompt: "laughing and pointing", Seed: 42, CharacterReference: "source.png"}, Width: 120, Height: 180}
+	job, e := s.RequestAsset(ctx, req)
+	if e != nil {
+		t.Fatal(e)
+	}
+	duplicate, e := s.RequestAsset(ctx, req)
+	if e != nil || duplicate.ID != job.ID {
+		t.Fatalf("duplicate %v", e)
+	}
+	changed := cfg.Profiles["story"]
+	changed.Speed = "turbo"
+	s.generation.Profiles["story"] = changed
+	if _, e = s.RunJobs(ctx, RunJobsRequest{path, 1}); e != nil {
+		t.Fatal(e)
+	}
+	job, e = s.Job(ctx, JobRequest{path, job.ID})
+	if e != nil || job.State != "succeeded" {
+		t.Fatalf("job %+v: %v", job, e)
+	}
+	if job.GenerationProvenance == nil || job.GenerationProvenance.Adapter != "ideogram/v1" {
+		t.Fatal("missing provenance")
+	}
+	s = NewService()
+	if _, e = s.SelectCandidate(ctx, SelectCandidateRequest{ProjectFile: path, JobID: job.ID, ExpectedRevision: view.Revision}); e != nil {
+		t.Fatal(e)
+	}
+	var execution map[string]any
+	if e = json.Unmarshal(job.Execution, &execution); e != nil {
+		t.Fatal(e)
+	}
+	if execution["result"] == nil {
+		t.Fatal("provider result metadata was not retained")
+	}
+	if posts != 1 {
+		t.Fatalf("posts %d", posts)
+	}
 }
