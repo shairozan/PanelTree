@@ -80,3 +80,5 @@ Precedence is explicit flags, environment, the selected file, then defaults. `PA
 Runtime configuration is separate from book/page project definitions.
 
 For hosted generation with named profiles, see [Ideogram renderer](docs/ideogram.md) and [example runtime configuration](examples/ideogram/runtime.yaml).
+
+Optional storage: [PostgreSQL projects and shared characters](docs/postgres.md).

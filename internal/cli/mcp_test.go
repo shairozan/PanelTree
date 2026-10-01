@@ -10,25 +10,56 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 )
 
+type observedMCPInput struct {
+	*io.PipeReader
+	started   chan struct{}
+	once      sync.Once
+	closed    chan struct{}
+	closeOnce sync.Once
+}
+
+func (r *observedMCPInput) Read(p []byte) (int, error) {
+	r.once.Do(func() { close(r.started) })
+	return r.PipeReader.Read(p)
+}
+
+func (r *observedMCPInput) Close() error {
+	r.closeOnce.Do(func() { close(r.closed) })
+	return r.PipeReader.Close()
+}
 func TestMCPServeContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	reader, writer := io.Pipe()
 	defer func() { _ = reader.Close(); _ = writer.Close() }()
 	cmd := Command()
-	cmd.SetIn(reader)
+	input := &observedMCPInput{PipeReader: reader, started: make(chan struct{}), closed: make(chan struct{})}
+	cmd.SetIn(input)
 	cmd.SetOut(io.Discard)
 	cmd.SetArgs([]string{"mcp", "serve", "--root", t.TempDir()})
 	done := make(chan error, 1)
 	go func() { done <- cmd.ExecuteContext(ctx) }()
+	select {
+	case <-input.started:
+	case err := <-done:
+		t.Fatalf("MCP exited before reading: %v", err)
+	case <-time.After(10 * time.Second):
+		t.Fatal("MCP did not start reading")
+	}
 	cancel()
 	select {
 	case <-done:
-	case <-time.After(2 * time.Second):
+		select {
+		case <-input.closed:
+		default:
+			t.Fatal("input not closed")
+		}
+	case <-time.After(10 * time.Second):
 		t.Fatal("MCP shutdown did not close blocked input")
 	}
 }

@@ -25,6 +25,11 @@ func TestIdeogramSubmitPollAndResume(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
+	// Fixture encoding is setup, not part of the provider request deadline.
+	var fixture bytes.Buffer
+	if e := png.Encode(&fixture, image.NewNRGBA(image.Rect(0, 0, 1024, 1024))); e != nil {
+		t.Fatal(e)
+	}
 	posts := 0
 	var srv *httptest.Server
 	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -48,14 +53,14 @@ func TestIdeogramSubmitPollAndResume(t *testing.T) {
 			if req.Header.Get("Api-Key") != "" {
 				t.Error("key leaked to image download")
 			}
-			_ = png.Encode(w, image.NewNRGBA(image.Rect(0, 0, 1024, 1024)))
+			_, _ = w.Write(fixture.Bytes())
 		default:
 			t.Errorf("unexpected path %s", req.URL.Path)
 			http.NotFound(w, req)
 		}
 	}))
 	defer srv.Close()
-	c := &Ideogram{APIKey: "test-key", BaseURL: srv.URL, Client: srv.Client(), Timeout: time.Second, PollInterval: time.Millisecond}
+	c := &Ideogram{APIKey: "test-key", BaseURL: srv.URL, Client: srv.Client(), Timeout: 10 * time.Second, PollInterval: time.Millisecond}
 	var state IdeogramState
 	save := func(v IdeogramState) error { state = v; return nil }
 	data, e := c.Run(context.Background(), r, state, save)

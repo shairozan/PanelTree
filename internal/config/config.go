@@ -3,6 +3,7 @@ package config
 
 import (
 	"fmt"
+	"github.com/shairozan/PanelTree/internal/storage"
 	"github.com/shairozan/PanelTree/render"
 	"path/filepath"
 
@@ -12,6 +13,7 @@ import (
 
 // Config holds typed runtime settings. Treat it as read-only after initialization.
 type Config struct {
+	Storage      storage.Config          `mapstructure:"storage"`
 	Generation   render.GenerationConfig `mapstructure:"generation"`
 	ComfyURL     string                  `mapstructure:"comfyui-url"`
 	ComfyProfile string                  `mapstructure:"comfyui-profile"`
@@ -64,6 +66,9 @@ func Resolve(v *viper.Viper, path string) (*Config, error) {
 	}
 	if cfg.ComfyProfile != "" && !filepath.IsAbs(cfg.ComfyProfile) {
 		cfg.ComfyProfile = filepath.Join(filepath.Dir(path), cfg.ComfyProfile)
+	}
+	if cfg.Storage.BlobRoot != "" && !filepath.IsAbs(cfg.Storage.BlobRoot) {
+		cfg.Storage.BlobRoot = filepath.Join(filepath.Dir(path), cfg.Storage.BlobRoot)
 	}
 	switch cfg.LogLevel {
 	case "debug", "info", "warn", "error":

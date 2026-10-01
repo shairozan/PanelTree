@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strings"
 )
 
 type Job struct {
@@ -133,7 +134,10 @@ type assetInput struct {
 	Fingerprint      string `json:"fingerprint"`
 }
 
-func jobStore(w *workspace.Session) (*jobs.Store, error) {
+func (s *Service) jobStore(w *workspace.Session) (*jobs.Store, error) {
+	if strings.HasPrefix(w.Handle, "pg:") {
+		return s.storage.Jobs(strings.TrimPrefix(w.Handle, "pg:"))
+	}
 	path, e := workspace.SafePath(w.Root, ".paneltree/jobs")
 	if e != nil {
 		return nil, e
@@ -141,8 +145,14 @@ func jobStore(w *workspace.Session) (*jobs.Store, error) {
 	return jobs.Open(path)
 }
 func (s *Service) openJobs(ctx context.Context, p string) (*jobs.Store, error) {
+	if strings.HasPrefix(p, "pg:") {
+		if s.storage == nil {
+			return nil, fmt.Errorf("PostgreSQL storage is not configured")
+		}
+		return s.storage.Jobs(strings.TrimPrefix(p, "pg:"))
+	}
 	var store *jobs.Store
-	e := workspace.Open(ctx, p, func(w *workspace.Session) error { var e error; store, e = jobStore(w); return e })
+	e := s.openWorkspace(ctx, p, func(w *workspace.Session) error { var e error; store, e = s.jobStore(w); return e })
 	return store, e
 }
 func (s *Service) RequestAsset(ctx context.Context, r AssetRequest) (Job, error) {
@@ -161,11 +171,11 @@ func (s *Service) RequestAsset(ctx context.Context, r AssetRequest) (Job, error)
 		return Job{}, fmt.Errorf("ideogram API key is not configured")
 	}
 	var j jobs.Job
-	e := workspace.Open(ctx, r.ProjectFile, func(w *workspace.Session) error {
+	e := s.openWorkspace(ctx, r.ProjectFile, func(w *workspace.Session) error {
 		if w.Entry != w.Owner {
 			return &JobDiagnostic{Code: "invalid_project", Message: "submit against the owning project"}
 		}
-		store, e := jobStore(w)
+		store, e := s.jobStore(w)
 		if e != nil {
 			return e
 		}
@@ -256,7 +266,7 @@ func (s *Service) RunJobs(ctx context.Context, r RunJobsRequest) ([]Job, error) 
 		}
 		if input.Renderer == "comfyui" || input.Renderer == "ideogram" {
 			if input.Request.Character != nil {
-				e := workspace.Open(ctx, r.ProjectFile, func(w *workspace.Session) error {
+				e := s.openWorkspace(ctx, r.ProjectFile, func(w *workspace.Session) error {
 					current, e := currentCharacter(ctx, w, input.Target)
 					if e != nil {
 						return e
@@ -504,7 +514,7 @@ func (s *Service) snapshotAsset(ctx context.Context, w *workspace.Session, r Ass
 }
 
 func (s *Service) candidate(ctx context.Context, w *workspace.Session, op Operation) (string, error) {
-	store, e := jobStore(w)
+	store, e := s.jobStore(w)
 	if e != nil {
 		return "", e
 	}

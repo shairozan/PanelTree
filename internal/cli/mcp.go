@@ -2,7 +2,6 @@ package cli
 
 import (
 	protocol "github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/shairozan/PanelTree/app"
 	"github.com/shairozan/PanelTree/internal/config"
 	server "github.com/shairozan/PanelTree/internal/mcp"
 	"github.com/spf13/cobra"
@@ -33,7 +32,7 @@ func mcpCommand(root *cobra.Command) *cobra.Command {
 		return initialize(cmd, args)
 	}
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
-		service, e := app.NewRuntimeService(cfg.ComfyURL, cfg.ComfyProfile, cfg.Generation)
+		service, e := configuredService(cmd.Context(), cfg)
 		if e != nil {
 			return e
 		}
@@ -41,7 +40,12 @@ func mcpCommand(root *cobra.Command) *cobra.Command {
 		if e != nil {
 			return e
 		}
-		return s.Run(cmd.Context(), &protocol.IOTransport{Reader: io.NopCloser(cmd.InOrStdin()), Writer: writerCloser{cmd.OutOrStdout()}, MaxLineLength: 8 << 20})
+		// Preserve cancellation's ability to unblock stdin or a supplied pipe.
+		input, ok := cmd.InOrStdin().(io.ReadCloser)
+		if !ok {
+			input = io.NopCloser(cmd.InOrStdin())
+		}
+		return s.Run(cmd.Context(), &protocol.IOTransport{Reader: input, Writer: writerCloser{cmd.OutOrStdout()}, MaxLineLength: 8 << 20})
 	}
 	parent.AddCommand(cmd)
 	return parent

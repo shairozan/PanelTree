@@ -50,7 +50,10 @@ type Job struct {
 	Sequence        int             `json:"sequence"`
 }
 type Handler func(context.Context, json.RawMessage, func(int) error) ([]byte, error)
-type Store struct{ Root string }
+type Store struct {
+	Root        string
+	persistence Persistence
+}
 
 func Open(root string) (*Store, error) {
 	root, e := filepath.Abs(root)
@@ -123,6 +126,10 @@ func atomicFile(dir, name string, data []byte) error {
 	return os.Rename(tmp, filepath.Join(dir, name))
 }
 func (s *Store) save(j *Job) error {
+	if s.persistence != nil {
+		j.Sequence++
+		return s.persistence.Write(*j)
+	}
 	dir, e := s.path(j.ID, "")
 	if e != nil {
 		return e
@@ -135,6 +142,12 @@ func (s *Store) save(j *Job) error {
 	return atomicFile(dir, fmt.Sprintf("%08d.json", j.Sequence), data)
 }
 func (s *Store) read(id string) (Job, error) {
+	if !validID(id) {
+		return Job{}, &Diagnostic{"invalid_job", "expected a job ID"}
+	}
+	if s.persistence != nil {
+		return s.persistence.Read(id)
+	}
 	dir, e := s.path(id, "")
 	if e != nil {
 		return Job{}, e
@@ -179,6 +192,9 @@ func (s *Store) read(id string) (Job, error) {
 	return j, nil
 }
 func (s *Store) list() ([]Job, error) {
+	if s.persistence != nil {
+		return s.persistence.List()
+	}
 	entries, e := os.ReadDir(s.Root)
 	if e != nil {
 		return nil, e
@@ -197,7 +213,10 @@ func (s *Store) list() ([]Job, error) {
 	sort.Slice(all, func(i, j int) bool { return all[i].ID < all[j].ID })
 	return all, nil
 }
-func (s *Store) lock(ctx context.Context, name string, wait bool) (*os.File, error) {
+func (s *Store) lock(ctx context.Context, name string, wait bool) (func(), error) {
+	if s.persistence != nil {
+		return s.persistence.Lock(ctx, name, wait)
+	}
 	path, e := workspace.SafePath(s.Root, name)
 	if e != nil {
 		return nil, e
@@ -217,7 +236,7 @@ func (s *Store) lock(ctx context.Context, name string, wait bool) (*os.File, err
 			return nil, e
 		}
 		if ok {
-			return f, nil
+			return func() { unlock(f); _ = f.Close() }, nil
 		}
 		if !wait {
 			_ = f.Close()
@@ -231,7 +250,7 @@ func (s *Store) lock(ctx context.Context, name string, wait bool) (*os.File, err
 		}
 	}
 }
-func release(f *os.File) { unlock(f); _ = f.Close() }
+func release(fn func()) { fn() }
 func (s *Store) recover() error {
 	all, e := s.list()
 	if e != nil {
@@ -296,6 +315,10 @@ func (s *Store) Submit(ctx context.Context, key string, revision model.Revision,
 		var d *Diagnostic
 		if !errors.As(e, &d) || d.Code != "not_found" {
 			return e
+		}
+		if s.persistence != nil {
+			j = Job{ID: id, Key: key, Revision: revision, State: Queued, InputHash: digest(input), Sequence: 1}
+			return s.persistence.Submit(j, input)
 		}
 		stage, e := os.MkdirTemp(s.Root, ".submit-")
 		if e != nil {
@@ -442,7 +465,11 @@ func (s *Store) Result(ctx context.Context, id string) (Job, json.RawMessage, []
 		if e != nil {
 			return e
 		}
-		data, e = os.ReadFile(path)
+		if s.persistence != nil {
+			data, e = s.persistence.Bytes(j.ID, "artifact")
+		} else {
+			data, e = os.ReadFile(path)
+		}
 		if e != nil {
 			return e
 		}
@@ -459,7 +486,12 @@ func (s *Store) input(j Job) ([]byte, error) {
 	if e != nil {
 		return nil, e
 	}
-	data, e := os.ReadFile(path)
+	var data []byte
+	if s.persistence != nil {
+		data, e = s.persistence.Bytes(j.ID, "input")
+	} else {
+		data, e = os.ReadFile(path)
+	}
 	if e != nil {
 		return nil, e
 	}
@@ -547,7 +579,12 @@ func (s *Store) execute(parent context.Context, j Job, handler Handler) error {
 			if e != nil {
 				return e
 			}
-			if e = atomicFile(filepath.Dir(path), "artifact", output); e != nil {
+			if s.persistence != nil {
+				e = s.persistence.PutArtifact(j.ID, output)
+			} else {
+				e = atomicFile(filepath.Dir(path), "artifact", output)
+			}
+			if e != nil {
 				return e
 			}
 			current.State = Succeeded

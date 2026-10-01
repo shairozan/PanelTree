@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/shairozan/PanelTree/internal/asset"
 	"github.com/shairozan/PanelTree/internal/project"
+	"github.com/shairozan/PanelTree/internal/storage"
 	"github.com/shairozan/PanelTree/internal/workspace"
 	"github.com/shairozan/PanelTree/model"
 	"os"
@@ -50,204 +51,225 @@ type EditResult struct {
 
 func (s *Service) Edit(ctx context.Context, r EditRequest) (EditResult, error) {
 	var result EditResult
-	err := workspace.Open(ctx, r.ProjectFile, func(w *workspace.Session) error {
-		if _, e := os.Stat(filepath.Join(w.Root, "project.yaml")); e == nil && w.Entry != filepath.Join(w.Root, "project.yaml") {
-			return fmt.Errorf("edit the owning project.yaml to enforce project-wide policy")
-		}
-		states, e := readStates(w.State)
-		if e != nil {
-			return e
-		}
-		w.Validate = func(next *project.Snapshot) ([]byte, error) {
-			old := indexLayers(w.Snapshot)
-			nodes := indexLayers(next)
-			checked := make(map[string]LayerStatus, len(states))
-			for key, st := range states {
-				checked[key] = st
+	err := s.openWorkspace(ctx, r.ProjectFile, func(w *workspace.Session) error { return s.applyEdit(ctx, r, w, &result) })
+	return result, err
+}
+func (s *Service) applyEdit(ctx context.Context, r EditRequest, w *workspace.Session, result *EditResult) error {
+	if strings.HasPrefix(w.Handle, "pg:") {
+		for _, edit := range r.Edits {
+			if e := storage.ValidateDocumentPaths(w.Root, edit.File, edit.Document); e != nil {
+				return e
 			}
-			if len(r.Edits) == 0 {
-				onlyUnlock := true
+		}
+	}
+	if _, e := os.Stat(filepath.Join(w.Root, "project.yaml")); e == nil && w.Entry != filepath.Join(w.Root, "project.yaml") {
+		return fmt.Errorf("edit the owning project.yaml to enforce project-wide policy")
+	}
+	states, e := readStates(w.State)
+	if e != nil {
+		return e
+	}
+	w.Validate = func(next *project.Snapshot) ([]byte, error) {
+		old := indexLayers(w.Snapshot)
+		nodes := indexLayers(next)
+		checked := make(map[string]LayerStatus, len(states))
+		for key, st := range states {
+			checked[key] = st
+		}
+		if len(r.Edits) == 0 {
+			onlyUnlock := true
+			for _, op := range r.Operations {
+				if op.Action != "unlock" {
+					onlyUnlock = false
+				}
+			}
+			if onlyUnlock {
 				for _, op := range r.Operations {
-					if op.Action != "unlock" {
-						onlyUnlock = false
-					}
+					key := targetKey(op.Target)
+					st := checked[key]
+					st.Lock = ""
+					checked[key] = st
 				}
-				if onlyUnlock {
-					for _, op := range r.Operations {
-						key := targetKey(op.Target)
-						st := checked[key]
-						st.Lock = ""
-						checked[key] = st
+			}
+		}
+		// Unlock is a separate transaction, so ordering operations cannot bypass locks.
+		if e := checkLocks(old, nodes, checked, w.Root); e != nil {
+			return nil, e
+		}
+		seen := map[string]bool{}
+		for _, op := range r.Operations {
+			key := targetKey(op.Target)
+			n, ok := nodes[key]
+			if !ok {
+				return nil, fmt.Errorf("unknown layer %s", key)
+			}
+			if seen[key] {
+				return nil, fmt.Errorf("one operation per layer per changeset")
+			}
+			seen[key] = true
+			if op.Action == "approve" || op.Action == "override" || op.Action == "clear-selection" || op.Action == "select-candidate" {
+				for owner, locked := range checked {
+					if locked.Lock != model.AssetLock && locked.Lock != model.AllLock {
+						continue
+					}
+					if containsLayer(nodes[owner].layer, n.layer) {
+						return nil, fmt.Errorf("asset lock on %s protects selection %s", owner, key)
 					}
 				}
 			}
-			// Unlock is a separate transaction, so ordering operations cannot bypass locks.
-			if e := checkLocks(old, nodes, checked, w.Root); e != nil {
+			st := states[key]
+			if st.State == "" {
+				st.State = model.Draft
+			}
+			if st.Lock != "" && op.Action == "lock" {
+				return nil, fmt.Errorf("layer %s requires explicit unlock", key)
+			}
+			switch op.Action {
+			case "select-candidate":
+				if len(r.Edits) != 0 || len(r.Operations) != 1 {
+					return nil, fmt.Errorf("candidate selection requires its own changeset")
+				}
+				if st.State == model.Approved || st.Manual != "" {
+					return nil, fmt.Errorf("clear approved/manual selection explicitly before selecting a candidate")
+				}
+				pin, e := s.candidate(ctx, w, op)
+				if e != nil {
+					return nil, e
+				}
+				st.Pin = pin
+				st.Manual = ""
+				st.State = model.Draft
+				st.Request, e = requestIdentity(n)
+				if e != nil {
+					return nil, e
+				}
+			case "lock":
+				scope := op.Scope
+				if scope == "" {
+					scope = model.AllLock
+				}
+				if scope != model.AllLock && scope != model.AssetLock && scope != model.PlacementLock {
+					return nil, fmt.Errorf("unknown lock scope %s", scope)
+				}
+				st.Lock = scope
+			case "unlock":
+				st.Lock = ""
+				st.Asset = ""
+				st.Placement = ""
+			case "review":
+				if st.State != model.Draft {
+					return nil, fmt.Errorf("review requires draft state")
+				}
+				st.State = model.Review
+			case "draft":
+				if st.State == model.Draft {
+					return nil, fmt.Errorf("already draft")
+				}
+				st.State = model.Draft
+			case "approve", "override":
+				if n.layer.Source == nil {
+					return nil, fmt.Errorf("artwork selection requires a leaf layer")
+				}
+				if op.Action == "approve" && st.State != model.Review {
+					return nil, fmt.Errorf("approval requires review state")
+				}
+				path := op.Artifact
+				if !filepath.IsAbs(path) {
+					path = filepath.Join(w.Root, path)
+				}
+				path, e = filepath.EvalSymlinks(path)
+				if e != nil {
+					return nil, e
+				}
+				data, e := asset.ReadPNG(path)
+				if e != nil {
+					return nil, e
+				}
+				if op.Action == "override" {
+					st.Manual = path
+					refs, err := asset.ManualReferences(w.Root)
+					if err != nil {
+						return nil, err
+					}
+					if strings.HasPrefix(w.Handle, "pg:") || refs[path] != "" {
+						// Each explicit selection gets its own immutable identity;
+						// updating it cannot change another layer's selected bytes.
+						id, err := asset.Put(w.Root, data)
+						if err != nil {
+							return nil, err
+						}
+						st.Manual = ".paneltree/assets/" + id + ".png"
+					}
+					st.Pin = ""
+					st.State = model.Draft
+				} else {
+					st.Pin, e = asset.Put(w.Root, data)
+					if e != nil {
+						return nil, e
+					}
+					st.Manual = ""
+					st.State = model.Approved
+				}
+				st.Request, e = requestIdentity(n)
+				if e != nil {
+					return nil, e
+				}
+			case "clear-selection":
+				st.Pin = ""
+				st.Manual = ""
+				st.Request = ""
+				st.State = model.Draft
+			default:
+				return nil, fmt.Errorf("unknown editorial action %q", op.Action)
+			}
+			states[key] = st
+		}
+		for key, st := range states {
+			n, ok := nodes[key]
+			if !ok {
+				if st.Pin != "" || st.Manual != "" {
+					return nil, fmt.Errorf("clear selection before deleting %s", key)
+				}
+				delete(states, key)
+				continue
+			}
+			if st.Pin != "" || st.Manual != "" {
+				if n.layer.Source == nil {
+					return nil, fmt.Errorf("clear selection before replacing leaf %s", key)
+				}
+				id, e := requestIdentity(n)
+				if e != nil {
+					return nil, e
+				}
+				st.Stale = id != st.Request
+				states[key] = st
+			}
+		}
+		// New locks freeze the final prospective state, independent of operation order.
+		for _, op := range r.Operations {
+			if op.Action != "lock" {
+				continue
+			}
+			key := targetKey(op.Target)
+			st := states[key]
+			st.Asset, e = protectedAsset(nodes[key], nodes, states, w.Root)
+			if e != nil {
 				return nil, e
 			}
-			seen := map[string]bool{}
-			for _, op := range r.Operations {
-				key := targetKey(op.Target)
-				n, ok := nodes[key]
-				if !ok {
-					return nil, fmt.Errorf("unknown layer %s", key)
-				}
-				if seen[key] {
-					return nil, fmt.Errorf("one operation per layer per changeset")
-				}
-				seen[key] = true
-				if op.Action == "approve" || op.Action == "override" || op.Action == "clear-selection" || op.Action == "select-candidate" {
-					for owner, locked := range checked {
-						if locked.Lock != model.AssetLock && locked.Lock != model.AllLock {
-							continue
-						}
-						if containsLayer(nodes[owner].layer, n.layer) {
-							return nil, fmt.Errorf("asset lock on %s protects selection %s", owner, key)
-						}
-					}
-				}
-				st := states[key]
-				if st.State == "" {
-					st.State = model.Draft
-				}
-				if st.Lock != "" && op.Action == "lock" {
-					return nil, fmt.Errorf("layer %s requires explicit unlock", key)
-				}
-				switch op.Action {
-				case "select-candidate":
-					if len(r.Edits) != 0 || len(r.Operations) != 1 {
-						return nil, fmt.Errorf("candidate selection requires its own changeset")
-					}
-					if st.State == model.Approved || st.Manual != "" {
-						return nil, fmt.Errorf("clear approved/manual selection explicitly before selecting a candidate")
-					}
-					pin, e := s.candidate(ctx, w, op)
-					if e != nil {
-						return nil, e
-					}
-					st.Pin = pin
-					st.Manual = ""
-					st.State = model.Draft
-					st.Request, e = requestIdentity(n)
-					if e != nil {
-						return nil, e
-					}
-				case "lock":
-					scope := op.Scope
-					if scope == "" {
-						scope = model.AllLock
-					}
-					if scope != model.AllLock && scope != model.AssetLock && scope != model.PlacementLock {
-						return nil, fmt.Errorf("unknown lock scope %s", scope)
-					}
-					st.Lock = scope
-				case "unlock":
-					st.Lock = ""
-					st.Asset = ""
-					st.Placement = ""
-				case "review":
-					if st.State != model.Draft {
-						return nil, fmt.Errorf("review requires draft state")
-					}
-					st.State = model.Review
-				case "draft":
-					if st.State == model.Draft {
-						return nil, fmt.Errorf("already draft")
-					}
-					st.State = model.Draft
-				case "approve", "override":
-					if n.layer.Source == nil {
-						return nil, fmt.Errorf("artwork selection requires a leaf layer")
-					}
-					if op.Action == "approve" && st.State != model.Review {
-						return nil, fmt.Errorf("approval requires review state")
-					}
-					path := op.Artifact
-					if !filepath.IsAbs(path) {
-						path = filepath.Join(w.Root, path)
-					}
-					path, e = filepath.EvalSymlinks(path)
-					if e != nil {
-						return nil, e
-					}
-					data, e := asset.ReadPNG(path)
-					if e != nil {
-						return nil, e
-					}
-					if op.Action == "override" {
-						st.Manual = path
-						st.Pin = ""
-						st.State = model.Draft
-					} else {
-						st.Pin, e = asset.Put(w.Root, data)
-						if e != nil {
-							return nil, e
-						}
-						st.Manual = ""
-						st.State = model.Approved
-					}
-					st.Request, e = requestIdentity(n)
-					if e != nil {
-						return nil, e
-					}
-				case "clear-selection":
-					st.Pin = ""
-					st.Manual = ""
-					st.Request = ""
-					st.State = model.Draft
-				default:
-					return nil, fmt.Errorf("unknown editorial action %q", op.Action)
-				}
-				states[key] = st
+			st.Placement, e = protectedPlacement(nodes[key], nodes)
+			if e != nil {
+				return nil, e
 			}
-			for key, st := range states {
-				n, ok := nodes[key]
-				if !ok {
-					if st.Pin != "" || st.Manual != "" {
-						return nil, fmt.Errorf("clear selection before deleting %s", key)
-					}
-					delete(states, key)
-					continue
-				}
-				if st.Pin != "" || st.Manual != "" {
-					if n.layer.Source == nil {
-						return nil, fmt.Errorf("clear selection before replacing leaf %s", key)
-					}
-					id, e := requestIdentity(n)
-					if e != nil {
-						return nil, e
-					}
-					st.Stale = id != st.Request
-					states[key] = st
-				}
-			}
-			// New locks freeze the final prospective state, independent of operation order.
-			for _, op := range r.Operations {
-				if op.Action != "lock" {
-					continue
-				}
-				key := targetKey(op.Target)
-				st := states[key]
-				st.Asset, e = protectedAsset(nodes[key], nodes, states, w.Root)
-				if e != nil {
-					return nil, e
-				}
-				st.Placement, e = protectedPlacement(nodes[key], nodes)
-				if e != nil {
-					return nil, e
-				}
-				states[key] = st
-			}
-			return json.Marshal(states)
+			states[key] = st
 		}
-		snap, e := w.Commit(ctx, workspace.Changeset{ExpectedRevision: r.ExpectedRevision, Edits: r.Edits}, nil)
-		if e != nil {
-			return e
-		}
-		result = EditResult{Revision: snap.Revision, Layers: states}
-		return nil
-	})
-	return result, err
+		return json.Marshal(states)
+	}
+	snap, e := w.Commit(ctx, workspace.Changeset{ExpectedRevision: r.ExpectedRevision, Edits: r.Edits}, nil)
+	if e != nil {
+		return e
+	}
+	*result = EditResult{Revision: snap.Revision, Layers: states}
+	return nil
 }
 
 type layerNode struct {
@@ -350,7 +372,11 @@ func protectedAsset(n layerNode, nodes map[string]layerNode, states map[string]L
 			parts = append(parts, key, st.Pin)
 		}
 		if st.Manual != "" {
-			data, e := asset.ReadPNG(st.Manual)
+			path, e := asset.ManualPath(root, st.Manual)
+			if e != nil {
+				return "", e
+			}
+			data, e := asset.ReadPNG(path)
 			if e != nil {
 				return "", e
 			}
@@ -513,11 +539,14 @@ func selectedSnapshot(w *workspace.Session) (map[string]LayerStatus, error) {
 				return nil, e
 			}
 			st.Stale = id != st.Request
-			path := st.Manual
+			var path string
 			if st.Pin != "" {
 				path, e = asset.Resolve(w.Root, st.Pin)
 			} else {
-				_, e = asset.ReadPNG(path)
+				path, e = asset.ManualPath(w.Root, st.Manual)
+				if e == nil {
+					_, e = asset.ReadPNG(path)
+				}
 			}
 			if e != nil {
 				return nil, e

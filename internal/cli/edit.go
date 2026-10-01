@@ -66,7 +66,11 @@ func editCommand(verb string, root *cobra.Command) *cobra.Command {
 			}
 			r.Operations = []app.Operation{{Target: app.LayerTarget{Page: model.ID(page), Panel: model.ID(panel), Layer: model.ID(layer)}, Action: verb, Scope: model.LockScope(scope), Artifact: artifact}}
 		}
-		result, e := app.NewService().Edit(cmd.Context(), r)
+		service, e := configuredService(cmd.Context(), cfg)
+		if e != nil {
+			return e
+		}
+		result, e := service.Edit(cmd.Context(), r)
 		if e != nil {
 			return e
 		}

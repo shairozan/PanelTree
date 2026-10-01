@@ -29,8 +29,8 @@ func (s *Service) characterStatuses(ctx context.Context, project string, list []
 	if !needed {
 		return nil
 	}
-	return workspace.Open(ctx, project, func(w *workspace.Session) error {
-		store, e := jobStore(w)
+	return s.openWorkspace(ctx, project, func(w *workspace.Session) error {
+		store, e := s.jobStore(w)
 		if e != nil {
 			return e
 		}
