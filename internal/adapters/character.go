@@ -5,8 +5,8 @@ import (
 	"strings"
 )
 
-// Text conditioning is the only character capability of the current profile
-// contract. Reference bytes and exact geometry are not sent to the backend.
+// Character metadata supplements prompts. Published artwork is supplied
+// separately through the frozen image-input contract when explicitly selected.
 func characterPrompt(c *model.ResolvedCharacter) string {
 	parts := []string{c.Description}
 	if len(c.Palette) > 0 {

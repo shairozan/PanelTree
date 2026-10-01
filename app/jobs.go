@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 )
 
 type Job struct {
@@ -30,28 +31,36 @@ type Job struct {
 	GenerationProvenance *GenerationProvenance `json:"generation_provenance,omitempty"`
 }
 type GenerationProvenance struct {
-	Character       *model.ResolvedCharacter `json:"character,omitempty"`
-	Limitations     []string                 `json:"limitations,omitempty"`
-	BackendIdentity string                   `json:"backend_identity"`
-	Adapter         string                   `json:"adapter"`
-	Profile         string                   `json:"profile"`
-	ProfileHash     string                   `json:"profile_hash"`
-	Models          map[string]string        `json:"models"`
-	Seed            uint64                   `json:"seed"`
-	Output          string                   `json:"output"`
-	Width           int                      `json:"width"`
-	Height          int                      `json:"height"`
+	Settings        *render.GenerationProfile `json:"settings,omitempty"`
+	AspectRatio     string                    `json:"aspect_ratio,omitempty"`
+	ImageInputs     []ImageProvenance         `json:"image_inputs,omitempty"`
+	Character       *model.ResolvedCharacter  `json:"character,omitempty"`
+	Limitations     []string                  `json:"limitations,omitempty"`
+	BackendIdentity string                    `json:"backend_identity"`
+	Adapter         string                    `json:"adapter"`
+	Profile         string                    `json:"profile"`
+	ProfileHash     string                    `json:"profile_hash"`
+	Models          map[string]string         `json:"models"`
+	Seed            uint64                    `json:"seed"`
+	Output          string                    `json:"output"`
+	Width           int                       `json:"width"`
+	Height          int                       `json:"height"`
 }
 type JobDiagnostic = jobs.Diagnostic
 type RendererCapability struct {
-	CharacterCapabilities []string `json:"character_capabilities,omitempty"`
-	Limitations           []string `json:"limitations,omitempty"`
-	OutputKinds           []string `json:"output_kinds,omitempty"`
-	Profile               string   `json:"profile,omitempty"`
-	Name                  string   `json:"name"`
-	Version               string   `json:"version"`
-	SourceKinds           []string `json:"source_kinds"`
-	Available             bool     `json:"available"`
+	Attribution           string           `json:"attribution,omitempty"`
+	UsagePolicy           string           `json:"usage_policy,omitempty"`
+	Model                 string           `json:"model,omitempty"`
+	Operation             string           `json:"operation,omitempty"`
+	ImageConditioning     *ImageCapability `json:"image_conditioning,omitempty"`
+	CharacterCapabilities []string         `json:"character_capabilities,omitempty"`
+	Limitations           []string         `json:"limitations,omitempty"`
+	OutputKinds           []string         `json:"output_kinds,omitempty"`
+	Profile               string           `json:"profile,omitempty"`
+	Name                  string           `json:"name"`
+	Version               string           `json:"version"`
+	SourceKinds           []string         `json:"source_kinds"`
+	Available             bool             `json:"available"`
 }
 type AssetRequest struct {
 	Generation               *render.Generation
@@ -76,20 +85,49 @@ func (s *Service) Renderers() []RendererCapability {
 	caps := []RendererCapability{{Name: "builtin", Version: "static/v1/" + runtime.Version(), SourceKinds: []string{"image", "svg", "text"}, Available: true}, {Name: "comfyui", Version: adapters.ComfyVersion, SourceKinds: []string{"generated"}, OutputKinds: []string{"rgb"}, Available: s.comfy != nil}}
 	if s.comfy != nil {
 		caps[1].Profile = s.comfy.Profile.Name + "/" + s.comfy.Profile.Revision
+		if len(s.comfy.Profile.ImageBindings) > 0 {
+			caps[1].ImageConditioning = &ImageCapability{Bindings: s.comfy.Profile.ImageBindings, Format: "PNG", MaxDimension: 8192, MaxPixels: 4 << 20, MaxTotalBytes: 32 << 20, Transport: "multipart /upload/image; retained content-addressed input/paneltree", Packing: []string{"original/v1", "anchors-row/v1", "directional-card/v1", "cards-row/v1"}}
+		}
 	}
 	caps[1].CharacterCapabilities = []string{"description", "palette", "costume-description", "expression-description", "pose-description", "prop-description"}
 	caps[1].Limitations = adapters.CharacterLimitations()
+	if caps[1].ImageConditioning != nil {
+		caps[1].Limitations = imageLimitations()
+	}
+	names := make([]string, 0, len(s.generation.Profiles))
+	for name := range s.generation.Profiles {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		p := s.generation.Profiles[name]
+		roles := map[string]int{"style": 10}
+		required := map[string]int{}
+		if p.Model == "ideogram-4-5" {
+			roles = map[string]int{"style": 0}
+			if p.Operation == "edit" {
+				roles["style"] = 4
+			}
+		}
+		if p.Operation == "character" || p.Operation == "edit" {
+			roles["character"] = 1
+			required["character"] = 1
+		}
+		caps = append(caps, RendererCapability{Attribution: "Powered by Ideogram", UsagePolicy: "https://ideogram.ai/legal/usage-policy/", ImageConditioning: &ImageCapability{Roles: roles, RequiredRoles: required, Format: "PNG", MaxDimension: 8192, MaxPixels: 4 << 20, MaxTotalBytes: 32 << 20, Transport: "multipart", Packing: []string{"original/v1"}}, Name: "ideogram", Version: adapters.IdeogramVersion, Profile: name, Available: s.ideogram != nil && s.ideogram.APIKey != "", SourceKinds: []string{"generated"}, OutputKinds: []string{"rgb"}, Limitations: []string{"one character reference; identity and pixel reproducibility not guaranteed"}, Model: p.Model, Operation: p.Operation})
+	}
 	return caps
 }
 
 type assetInput struct {
-	GenerationRecipe *adapters.ComfyRecipe `json:"generation_recipe,omitempty"`
-	Version          string                `json:"version"`
-	Target           LayerTarget           `json:"target"`
-	Renderer         string                `json:"renderer"`
-	RendererVersion  string                `json:"renderer_version"`
-	Request          render.Request        `json:"request"`
-	Files            map[string][]byte     `json:"files"`
+	IdeogramRecipe   *adapters.IdeogramRecipe `json:"ideogram_recipe,omitempty"`
+	Reference        *referenceJob            `json:"reference,omitempty"`
+	GenerationRecipe *adapters.ComfyRecipe    `json:"generation_recipe,omitempty"`
+	Version          string                   `json:"version"`
+	Target           LayerTarget              `json:"target"`
+	Renderer         string                   `json:"renderer"`
+	RendererVersion  string                   `json:"renderer_version"`
+	Request          render.Request           `json:"request"`
+	Files            map[string][]byte        `json:"files"`
 	Width, Height    int
 	Fit              string
 	Fingerprint      string `json:"fingerprint"`
@@ -108,14 +146,19 @@ func (s *Service) openJobs(ctx context.Context, p string) (*jobs.Store, error) {
 	return store, e
 }
 func (s *Service) RequestAsset(ctx context.Context, r AssetRequest) (Job, error) {
-	if r.Renderer == "" {
-		r.Renderer = "builtin"
+	var err error
+	r.Renderer, r.Generation, err = s.resolveGeneration(r.Renderer, r.Generation)
+	if err != nil {
+		return Job{}, err
 	}
-	if r.Renderer != "builtin" && (r.Renderer != "comfyui" || s.comfy == nil) {
+	if r.Renderer != "builtin" && (r.Renderer != "comfyui" || s.comfy == nil) && (r.Renderer != "ideogram" || s.ideogram == nil) {
 		return Job{}, &JobDiagnostic{Code: "renderer_unavailable", Message: "renderer " + r.Renderer + " is unavailable"}
 	}
 	if r.Renderer == "builtin" && r.Generation != nil {
 		return Job{}, &JobDiagnostic{Code: "invalid_input", Message: "builtin renderer does not accept generation requests"}
+	}
+	if r.Renderer == "ideogram" && (s.ideogram == nil || s.ideogram.APIKey == "") {
+		return Job{}, fmt.Errorf("ideogram API key is not configured")
 	}
 	var j jobs.Job
 	e := workspace.Open(ctx, r.ProjectFile, func(w *workspace.Session) error {
@@ -211,7 +254,7 @@ func (s *Service) RunJobs(ctx context.Context, r RunJobsRequest) ([]Job, error) 
 		if e := json.Unmarshal(payload, &input); e != nil {
 			return nil, e
 		}
-		if input.Renderer == "comfyui" {
+		if input.Renderer == "comfyui" || input.Renderer == "ideogram" {
 			if input.Request.Character != nil {
 				e := workspace.Open(ctx, r.ProjectFile, func(w *workspace.Session) error {
 					current, e := currentCharacter(ctx, w, input.Target)
@@ -300,8 +343,20 @@ func describeJob(ctx context.Context, store *jobs.Store, j jobs.Job) (Job, error
 	if r := input.GenerationRecipe; r != nil {
 		out.GenerationProvenance = &GenerationProvenance{BackendIdentity: r.Profile.BackendIdentity, Adapter: r.Adapter, Profile: r.Profile.Name + "/" + r.Profile.Revision, ProfileHash: r.ProfileHash, Models: r.Profile.Models, Seed: r.Generation.Seed, Output: r.Generation.Output, Width: r.Width, Height: r.Height}
 		out.GenerationProvenance.Character = r.Character
+		for _, im := range r.ImageInputs {
+			out.GenerationProvenance.ImageInputs = append(out.GenerationProvenance.ImageInputs, ImageProvenance{Role: im.Role, SHA256: im.SHA256})
+		}
 		if r.Character != nil {
 			out.GenerationProvenance.Limitations = adapters.CharacterLimitations()
+		}
+		if len(r.ImageInputs) > 0 {
+			out.GenerationProvenance.Limitations = imageLimitations()
+		}
+	}
+	if r := input.IdeogramRecipe; r != nil {
+		out.GenerationProvenance = &GenerationProvenance{Settings: &r.Profile, AspectRatio: r.AspectRatio, BackendIdentity: "https://api.ideogram.ai", Adapter: r.Adapter, Profile: r.ProfileName, ProfileHash: hash(r.Profile), Models: map[string]string{"model": r.Profile.Model, "operation": r.Profile.Operation}, Seed: r.Generation.Seed, Output: "rgb", Character: input.Request.Character}
+		for _, im := range r.Images {
+			out.GenerationProvenance.ImageInputs = append(out.GenerationProvenance.ImageInputs, ImageProvenance{Role: im.Role, SHA256: im.SHA256})
 		}
 	}
 	return out, nil
@@ -401,7 +456,7 @@ func (s *Service) snapshotAsset(ctx context.Context, w *workspace.Session, r Ass
 		request := build.LeafRequest(*leaf, resolved.Output(), "")
 		request.Revision = w.Snapshot.Revision
 		request.Generation = r.Generation
-		if r.Renderer == "comfyui" {
+		if r.Renderer == "comfyui" || r.Renderer == "ideogram" {
 			request.Character, e = characters.Resolve(ctx, w.Root, n.layer.Source.Character)
 			if e != nil {
 				return input, fmt.Errorf("character package: %w", e)
@@ -423,12 +478,24 @@ func (s *Service) snapshotAsset(ctx context.Context, w *workspace.Session, r Ass
 			if s.comfy == nil {
 				return input, &JobDiagnostic{Code: "renderer_unavailable", Message: "ComfyUI is not configured"}
 			}
+			if request.Character != nil && request.Character.Use.ReferenceSet != nil {
+				request.ImageInputs, e = publishedImages(w.Root, *request.Character.Use.ReferenceSet)
+				if e != nil {
+					return input, e
+				}
+				input.Request = request
+			}
 			recipe, e := s.comfy.Freeze(request)
 			if e != nil {
 				return input, e
 			}
 			input.GenerationRecipe = &recipe
 			input.RendererVersion = adapters.ComfyVersion
+		}
+		if r.Renderer == "ideogram" {
+			if e = s.freezeIdeogram(w.Root, &input); e != nil {
+				return input, e
+			}
 		}
 		input.Fingerprint = hash(input)
 		return input, nil
@@ -455,7 +522,12 @@ func (s *Service) candidate(ctx context.Context, w *workspace.Session, op Operat
 	if input.Target != op.Target {
 		return "", &JobDiagnostic{Code: "invalid_target", Message: "candidate belongs to another layer"}
 	}
-	current, e := s.snapshotAsset(ctx, w, AssetRequest{Target: op.Target, Renderer: input.Renderer, Width: input.Width, Height: input.Height, Fit: input.Fit, Generation: input.Request.Generation})
+	selectionService := *s
+	if input.IdeogramRecipe != nil {
+		selectionService.generation = s.generation
+		selectionService.generation.Profiles = map[string]render.GenerationProfile{input.IdeogramRecipe.ProfileName: input.IdeogramRecipe.Profile}
+	}
+	current, e := selectionService.snapshotAsset(ctx, w, AssetRequest{Target: op.Target, Renderer: input.Renderer, Width: input.Width, Height: input.Height, Fit: input.Fit, Generation: input.Request.Generation})
 	if e != nil {
 		return "", e
 	}
@@ -469,6 +541,9 @@ func (s *Service) candidate(ctx context.Context, w *workspace.Session, op Operat
 }
 
 func (s *Service) runGeneration(ctx context.Context, input assetInput, progress func(int) error) ([]byte, error) {
+	if input.Renderer == "ideogram" {
+		return s.runIdeogram(ctx, input)
+	}
 	if input.Version != "asset-job/v1" || input.RendererVersion != adapters.ComfyVersion || input.GenerationRecipe == nil || s.comfy == nil {
 		return nil, &JobDiagnostic{Code: "renderer_unavailable", Message: "submitted ComfyUI renderer is unavailable"}
 	}

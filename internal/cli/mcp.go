@@ -33,7 +33,7 @@ func mcpCommand(root *cobra.Command) *cobra.Command {
 		return initialize(cmd, args)
 	}
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
-		service, e := app.NewRuntimeService(cfg.ComfyURL, cfg.ComfyProfile)
+		service, e := app.NewRuntimeService(cfg.ComfyURL, cfg.ComfyProfile, cfg.Generation)
 		if e != nil {
 			return e
 		}

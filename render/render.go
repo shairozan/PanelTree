@@ -36,21 +36,32 @@ type Descriptor struct {
 }
 type Dependency struct{ Path, ContentHash string }
 type Request struct {
-	Character  *model.ResolvedCharacter `json:"character,omitempty"`
-	Generation *Generation              `json:",omitempty"`
-	Fit        string
-	BaseDir    string
-	Source     model.Source
-	Scene      scene.Context
-	Revision   model.Revision
+	ImageInputs []ImageInput             `json:"image_inputs,omitempty"`
+	Character   *model.ResolvedCharacter `json:"character,omitempty"`
+	Generation  *Generation              `json:",omitempty"`
+	Fit         string
+	BaseDir     string
+	Source      model.Source
+	Scene       scene.Context
+	Revision    model.Revision
+}
+
+// ImageInput is a frozen PNG, never a backend path or a textual reference.
+type ImageInput struct {
+	Role   string `json:"role"`
+	SHA256 string `json:"sha256"`
+	PNG    []byte `json:"png"`
 }
 
 // Generation is a backend-neutral request for a draft candidate, never a selection.
 type Generation struct {
-	Prompt         string `json:"prompt"`
-	NegativePrompt string `json:"negative_prompt,omitempty"`
-	Seed           uint64 `json:"seed"`
-	Output         string `json:"output,omitempty"`
+	Profile            string   `json:"profile,omitempty"`
+	CharacterReference string   `json:"character_reference,omitempty"`
+	StyleReferences    []string `json:"style_references,omitempty"`
+	Prompt             string   `json:"prompt"`
+	NegativePrompt     string   `json:"negative_prompt,omitempty"`
+	Seed               uint64   `json:"seed"`
+	Output             string   `json:"output,omitempty"`
 }
 type Artifact struct {
 	Path, ContentHash string

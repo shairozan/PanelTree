@@ -38,9 +38,11 @@ type ValidateResult struct {
 	PageCount int  `json:"page_count"`
 }
 type Service struct {
-	comfy    *adapters.ComfyUI
-	measurer scene.Measurer
-	raster   render.Rasterizer
+	generation render.GenerationConfig
+	ideogram   *adapters.Ideogram
+	comfy      *adapters.ComfyUI
+	measurer   scene.Measurer
+	raster     render.Rasterizer
 }
 
 func WithComfyUI(c *adapters.ComfyUI) ServiceOption { return func(s *Service) { s.comfy = c } }

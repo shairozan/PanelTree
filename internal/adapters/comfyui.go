@@ -33,6 +33,7 @@ type ComfyBinding struct {
 	Input string `json:"input"`
 }
 type ComfyProfile struct {
+	ImageBindings   []ImageBinding          `json:"image_bindings,omitempty"`
 	Version         string                  `json:"version"`
 	Name            string                  `json:"name"`
 	Revision        string                  `json:"revision"`
@@ -43,6 +44,7 @@ type ComfyProfile struct {
 	Bindings        map[string]ComfyBinding `json:"bindings"`
 }
 type ComfyRecipe struct {
+	ImageInputs []render.ImageInput      `json:"image_inputs,omitempty"`
 	Character   *model.ResolvedCharacter `json:"character,omitempty"`
 	Adapter     string                   `json:"adapter"`
 	Profile     ComfyProfile             `json:"profile"`
@@ -77,6 +79,9 @@ func LoadComfyProfile(path string) (ComfyProfile, error) {
 	return p, p.validate()
 }
 func (p ComfyProfile) validate() error {
+	if err := p.validateImageBindings(); err != nil {
+		return err
+	}
 	if p.Version != "comfy-profile/v1" || p.Name == "" || p.Revision == "" || p.BackendIdentity == "" || len(p.Models) == 0 {
 		return fmt.Errorf("profile requires version, name, revision, backend_identity and model identities")
 	}
@@ -137,6 +142,9 @@ func (c *ComfyUI) Freeze(r render.Request) (ComfyRecipe, error) {
 		return out, fmt.Errorf("generation requires a prompt")
 	}
 	g := *r.Generation
+	if g.CharacterReference != "" || len(g.StyleReferences) > 0 {
+		return out, fmt.Errorf("ComfyUI profile does not support character-image/style-image options; use its explicit image bindings")
+	}
 	if len(g.Prompt) > 16384 || len(g.NegativePrompt) > 16384 {
 		return out, fmt.Errorf("generation prompt too long")
 	}
@@ -166,6 +174,9 @@ func (c *ComfyUI) Freeze(r render.Request) (ComfyRecipe, error) {
 		return out, e
 	}
 	out.Workflow = detached.Workflow
+	if e = freezeImages(r.ImageInputs, &out); e != nil {
+		return out, e
+	}
 	if r.Character != nil {
 		data, err := json.Marshal(r.Character)
 		if err != nil {
@@ -191,7 +202,7 @@ func (c *ComfyUI) Generate(ctx context.Context, r ComfyRecipe) (result image.Ima
 	}
 	// Reject altered recipes and unsupported outputs before contacting the backend.
 	check := &ComfyUI{Profile: r.Profile}
-	expected, e := check.Freeze(render.Request{Character: r.Character, Generation: &r.Generation, Scene: scene.Context{PixelSize: model.Canvas{Width: float64(r.Width), Height: float64(r.Height)}}})
+	expected, e := check.Freeze(render.Request{ImageInputs: r.ImageInputs, Character: r.Character, Generation: &r.Generation, Scene: scene.Context{PixelSize: model.Canvas{Width: float64(r.Width), Height: float64(r.Height)}}})
 	if e != nil {
 		return nil, e
 	}
@@ -218,6 +229,11 @@ func (c *ComfyUI) Generate(ctx context.Context, r ComfyRecipe) (result image.Ima
 	body, e := json.Marshal(map[string]any{"prompt": r.Workflow, "extra_data": map[string]any{"paneltree": map[string]any{"profile_hash": r.ProfileHash, "backend_identity": r.Profile.BackendIdentity, "models": r.Profile.Models, "seed": r.Generation.Seed}}})
 	if e != nil {
 		return nil, e
+	}
+	for _, input := range r.ImageInputs {
+		if e = c.uploadImage(ctx, input); e != nil {
+			return nil, e
+		}
 	}
 	// POST /prompt has no guaranteed idempotency. Never retry an ambiguous response.
 	data, e := c.http(ctx, http.MethodPost, "/prompt", body, 2<<20)
@@ -322,11 +338,14 @@ func (e *comfyHTTPError) Error() string {
 	return fmt.Sprintf("ComfyUI HTTP status %d: %s", e.status, e.detail)
 }
 func (c *ComfyUI) http(ctx context.Context, method, path string, body []byte, limit int64) ([]byte, error) {
+	return c.httpContent(ctx, method, path, body, limit, "application/json")
+}
+func (c *ComfyUI) httpContent(ctx context.Context, method, path string, body []byte, limit int64, contentType string) ([]byte, error) {
 	req, e := http.NewRequestWithContext(ctx, method, strings.TrimRight(c.URL, "/")+path, bytes.NewReader(body))
 	if e != nil {
 		return nil, e
 	}
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", contentType)
 	client := http.Client{Timeout: 30 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	resp, e := client.Do(req)
 	if e != nil {

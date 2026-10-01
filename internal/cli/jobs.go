@@ -16,7 +16,7 @@ func jobCommands(root *cobra.Command) []*cobra.Command {
 		asset.AddCommand(jobCommand(verb, root))
 	}
 	jobs := &cobra.Command{Use: "jobs", Short: "Inspect, cancel and execute durable local jobs"}
-	for _, verb := range []string{"list", "status", "cancel", "run"} {
+	for _, verb := range []string{"list", "status", "cancel", "run", "resume", "estimate"} {
 		jobs.AddCommand(jobCommand(verb, root))
 	}
 	return []*cobra.Command{asset, jobs, jobCommand("renderers", root)}
@@ -29,7 +29,7 @@ func jobCommand(verb string, root *cobra.Command) *cobra.Command {
 	var generation render.Generation
 	var id, revision, page, panel, layer string
 	workers := 2
-	cmd := &cobra.Command{Use: verb + " [project.yaml]", Short: map[string]string{"request": "Queue a frozen leaf rendering request", "select": "Select a successful candidate at its original revision", "list": "List durable jobs", "status": "Read job progress and diagnostics", "cancel": "Cancel a queued or running job", "run": "Drain queued jobs with bounded workers", "renderers": "Discover available renderer capabilities"}[verb], Args: cobra.ExactArgs(1)}
+	cmd := &cobra.Command{Use: verb + " [project.yaml]", Short: map[string]string{"request": "Queue a frozen leaf rendering request", "select": "Select a successful candidate at its original revision", "list": "List durable jobs", "status": "Read job progress and diagnostics", "cancel": "Cancel a queued or running job", "run": "Drain queued jobs with bounded workers", "renderers": "Discover available renderer capabilities", "resume": "Resume polling a known remote generation", "estimate": "Request a non-billing quote for a frozen Ideogram job"}[verb], Args: cobra.ExactArgs(1)}
 	if verb == "renderers" {
 		cmd.Use = "renderers"
 		cmd.Args = cobra.NoArgs
@@ -38,12 +38,16 @@ func jobCommand(verb string, root *cobra.Command) *cobra.Command {
 		cmd.Flags().StringVar(&revision, "revision", "", "expected project revision")
 	}
 	if verb == "request" {
+		cmd.Flags().StringVar(&generation.Profile, "generation-profile", "", "named generation profile")
+		cmd.Flags().StringVar(&generation.CharacterReference, "character-image", "", "project-relative character PNG (4.5 edit source)")
+		cmd.Flags().StringSliceVar(&generation.StyleReferences, "style-image", nil, "project-relative style PNGs (4.5 supporting references, in order)")
+
 		cmd.Flags().StringVar(&generation.Prompt, "prompt", "", "semantic prompt for a generated draft")
 		cmd.Flags().StringVar(&generation.NegativePrompt, "negative-prompt", "", "negative prompt (profile must support it)")
 		cmd.Flags().Uint64Var(&generation.Seed, "seed", 0, "explicit generation seed")
 		cmd.Flags().StringVar(&generation.Output, "output-kind", "rgb", "generation capability (rgb only)")
 		cmd.Flags().StringVar(&request.IdempotencyKey, "key", "", "idempotency key (required)")
-		cmd.Flags().StringVar(&request.Renderer, "renderer", "builtin", "renderer name")
+		cmd.Flags().StringVar(&request.Renderer, "renderer", "", "renderer name")
 		cmd.Flags().StringVar(&page, "page", "", "page ID")
 		cmd.Flags().StringVar(&panel, "panel", "", "panel ID")
 		cmd.Flags().StringVar(&layer, "layer", "", "leaf layer ID")
@@ -51,7 +55,7 @@ func jobCommand(verb string, root *cobra.Command) *cobra.Command {
 		cmd.Flags().IntVar(&request.Height, "height", 0, "page output height (requires width)")
 		cmd.Flags().StringVar(&request.Fit, "fit", "error", "page output aspect policy")
 	}
-	if verb == "status" || verb == "cancel" || verb == "select" {
+	if verb == "status" || verb == "cancel" || verb == "select" || verb == "resume" || verb == "estimate" {
 		cmd.Flags().StringVar(&id, "id", "", "job ID")
 	}
 	if verb == "run" {
@@ -67,7 +71,7 @@ func jobCommand(verb string, root *cobra.Command) *cobra.Command {
 			return e
 		}
 		var e error
-		service, e = app.NewRuntimeService(cfg.ComfyURL, cfg.ComfyProfile)
+		service, e = app.NewRuntimeService(cfg.ComfyURL, cfg.ComfyProfile, cfg.Generation)
 		return e
 	}
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
@@ -78,7 +82,7 @@ func jobCommand(verb string, root *cobra.Command) *cobra.Command {
 		case "renderers":
 			result = service.Renderers()
 		case "request":
-			if request.Renderer == "comfyui" || cmd.Flags().Changed("prompt") || cmd.Flags().Changed("negative-prompt") || cmd.Flags().Changed("seed") || cmd.Flags().Changed("output-kind") {
+			if cmd.Flags().Changed("character-image") || cmd.Flags().Changed("style-image") || request.Renderer == "ideogram" || generation.Profile != "" || request.Renderer == "comfyui" || cmd.Flags().Changed("prompt") || cmd.Flags().Changed("negative-prompt") || cmd.Flags().Changed("seed") || cmd.Flags().Changed("output-kind") {
 				request.Generation = &generation
 			}
 			request.ProjectFile = args[0]
@@ -91,6 +95,10 @@ func jobCommand(verb string, root *cobra.Command) *cobra.Command {
 			result, e = service.Jobs(ctx, args[0])
 		case "status":
 			result, e = service.Job(ctx, app.JobRequest{ProjectFile: args[0], ID: id})
+		case "resume":
+			result, e = service.ResumeJob(ctx, app.JobRequest{ProjectFile: args[0], ID: id})
+		case "estimate":
+			result, e = service.EstimateJob(ctx, app.JobRequest{ProjectFile: args[0], ID: id})
 		case "cancel":
 			result, e = service.CancelJob(ctx, app.JobRequest{ProjectFile: args[0], ID: id})
 		case "run":

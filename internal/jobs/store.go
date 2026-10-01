@@ -36,16 +36,18 @@ type Diagnostic struct {
 func (e *Diagnostic) Error() string { return e.Code + ": " + e.Message }
 
 type Job struct {
-	ID              string         `json:"id"`
-	Key             string         `json:"idempotency_key"`
-	Revision        model.Revision `json:"revision"`
-	State           State          `json:"state"`
-	Progress        int            `json:"progress"`
-	Diagnostic      *Diagnostic    `json:"diagnostic,omitempty"`
-	CancelRequested bool           `json:"cancel_requested,omitempty"`
-	InputHash       string         `json:"input_hash"`
-	ArtifactHash    string         `json:"artifact_hash,omitempty"`
-	Sequence        int            `json:"sequence"`
+	Execution       json.RawMessage `json:"execution,omitempty"`
+	Resumable       bool            `json:"resumable,omitempty"`
+	ID              string          `json:"id"`
+	Key             string          `json:"idempotency_key"`
+	Revision        model.Revision  `json:"revision"`
+	State           State           `json:"state"`
+	Progress        int             `json:"progress"`
+	Diagnostic      *Diagnostic     `json:"diagnostic,omitempty"`
+	CancelRequested bool            `json:"cancel_requested,omitempty"`
+	InputHash       string          `json:"input_hash"`
+	ArtifactHash    string          `json:"artifact_hash,omitempty"`
+	Sequence        int             `json:"sequence"`
 }
 type Handler func(context.Context, json.RawMessage, func(int) error) ([]byte, error)
 type Store struct{ Root string }
@@ -242,6 +244,10 @@ func (s *Store) recover() error {
 		j.State = Failed
 		j.ArtifactHash = ""
 		j.Diagnostic = &Diagnostic{"interrupted", "execution owner exited; submit a new idempotency key to retry"}
+		if j.Resumable {
+			j.State = Queued
+			j.Diagnostic = nil
+		}
 		if j.CancelRequested {
 			j.State = Cancelled
 			j.Diagnostic = &Diagnostic{"cancelled", "cancelled before execution owner exited"}
@@ -508,7 +514,8 @@ func (s *Store) execute(parent context.Context, j Job, handler Handler) error {
 	input, runErr := s.input(j)
 	var output []byte
 	if runErr == nil {
-		output, runErr = invoke(ctx, handler, input, progress)
+		handlerContext := context.WithValue(ctx, executionKey{}, &executionHandle{store: s, id: j.ID, initial: j.Execution})
+		output, runErr = invoke(handlerContext, handler, input, progress)
 	}
 	close(stop)
 	<-watchDone

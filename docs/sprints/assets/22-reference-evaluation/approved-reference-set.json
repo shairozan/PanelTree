@@ -1,0 +1,236 @@
+{
+  "id": "hero",
+  "sequence": 18,
+  "revision": "ad4d91822fba5a943851db032f0eaa05bc74ceb6a9542c9f717560ea4f297f83",
+  "accepted": {
+    "body/front": "acab5a19b3b45e53f73df528dc2064ae71ed1e59e4916f57313d7671f9b68bfa",
+    "body/left": "306c7f7b8077b80e8736612b18b510805f1848efd02cb6f5c94d651ca605d914",
+    "body/rear": "e5b365586d4d5f90a9fcdcd61e9b25ec37bcc62245bc81787668dcc1abe284a7",
+    "body/right": "ef35d2ddc21981e026d22cd95f1f3521a6029dff62fbb190113b6efa7db8de58",
+    "head/front": "6a53e4809847e1014bdd60529acdf2e58356d51a05799ee6c1c0bf20ee2d04bc",
+    "head/left": "38b6ca739b91c31634176e232bbd94e6f9391500dea98efb512ed71bb2d3a15e",
+    "head/rear": "4db6075a3ae0909f0530cb22f2279ea7cdea1ed64ed29c230ecc2f2b08225f6d",
+    "head/right": "3cf2470683aa5b53f03a1b7a1b68729b74d83d3fabb548b4e7e1191741d150ce"
+  },
+  "candidates": {
+    "306c7f7b8077b80e8736612b18b510805f1848efd02cb6f5c94d651ca605d914": {
+      "approved_against": {
+        "body/front": "acab5a19b3b45e53f73df528dc2064ae71ed1e59e4916f57313d7671f9b68bfa"
+      },
+      "slot": "body/left",
+      "image": "c396520d01fcaaf98265a1b8aa837fc679d315c7d3e8a6cdc9c72fe5fd2687f8",
+      "parents": {
+        "body/front": "acab5a19b3b45e53f73df528dc2064ae71ed1e59e4916f57313d7671f9b68bfa"
+      },
+      "license": "CC0-1.0",
+      "attribution": "PanelTree synthetic geometric fixture"
+    },
+    "38b6ca739b91c31634176e232bbd94e6f9391500dea98efb512ed71bb2d3a15e": {
+      "approved_against": {
+        "body/left": "306c7f7b8077b80e8736612b18b510805f1848efd02cb6f5c94d651ca605d914",
+        "head/front": "6a53e4809847e1014bdd60529acdf2e58356d51a05799ee6c1c0bf20ee2d04bc"
+      },
+      "slot": "head/left",
+      "image": "b1283fe316b1c46b4d34b8a6450fcf434c3436d3ed72c617f78dc1f0de7a2105",
+      "parents": {
+        "body/left": "306c7f7b8077b80e8736612b18b510805f1848efd02cb6f5c94d651ca605d914",
+        "head/front": "6a53e4809847e1014bdd60529acdf2e58356d51a05799ee6c1c0bf20ee2d04bc"
+      },
+      "license": "CC0-1.0",
+      "attribution": "PanelTree synthetic geometric fixture"
+    },
+    "3cf2470683aa5b53f03a1b7a1b68729b74d83d3fabb548b4e7e1191741d150ce": {
+      "approved_against": {
+        "body/right": "ef35d2ddc21981e026d22cd95f1f3521a6029dff62fbb190113b6efa7db8de58",
+        "head/front": "6a53e4809847e1014bdd60529acdf2e58356d51a05799ee6c1c0bf20ee2d04bc"
+      },
+      "slot": "head/right",
+      "image": "f0517d144aa2bae051c6f304ac3ab6bebf028e8ed5659ebadc9fdc37ab774912",
+      "parents": {
+        "body/right": "ef35d2ddc21981e026d22cd95f1f3521a6029dff62fbb190113b6efa7db8de58",
+        "head/front": "6a53e4809847e1014bdd60529acdf2e58356d51a05799ee6c1c0bf20ee2d04bc"
+      },
+      "license": "CC0-1.0",
+      "attribution": "PanelTree synthetic geometric fixture"
+    },
+    "4db6075a3ae0909f0530cb22f2279ea7cdea1ed64ed29c230ecc2f2b08225f6d": {
+      "approved_against": {
+        "body/rear": "e5b365586d4d5f90a9fcdcd61e9b25ec37bcc62245bc81787668dcc1abe284a7",
+        "head/front": "6a53e4809847e1014bdd60529acdf2e58356d51a05799ee6c1c0bf20ee2d04bc"
+      },
+      "slot": "head/rear",
+      "image": "1c3705962b85ffeaa12a6ed062118f081598caa6036060556ae34ceb5bbf60b9",
+      "parents": {
+        "body/rear": "e5b365586d4d5f90a9fcdcd61e9b25ec37bcc62245bc81787668dcc1abe284a7",
+        "head/front": "6a53e4809847e1014bdd60529acdf2e58356d51a05799ee6c1c0bf20ee2d04bc"
+      },
+      "license": "CC0-1.0",
+      "attribution": "PanelTree synthetic geometric fixture"
+    },
+    "6a53e4809847e1014bdd60529acdf2e58356d51a05799ee6c1c0bf20ee2d04bc": {
+      "approved_against": {
+        "body/front": "acab5a19b3b45e53f73df528dc2064ae71ed1e59e4916f57313d7671f9b68bfa"
+      },
+      "slot": "head/front",
+      "image": "9fed69fbd91f7479d1a9640c2ec8c218a8d89cd5621f92beae2cda254f8fd88f",
+      "parents": {
+        "body/front": "acab5a19b3b45e53f73df528dc2064ae71ed1e59e4916f57313d7671f9b68bfa"
+      },
+      "license": "CC0-1.0",
+      "attribution": "PanelTree synthetic geometric fixture"
+    },
+    "acab5a19b3b45e53f73df528dc2064ae71ed1e59e4916f57313d7671f9b68bfa": {
+      "approved_against": {},
+      "slot": "body/front",
+      "image": "ab905290df6f3dd07446cb54b8c7ab71d8651b676a6d7b2c16aacd57531c5774",
+      "parents": {},
+      "license": "CC0-1.0",
+      "attribution": "PanelTree synthetic geometric fixture"
+    },
+    "e5b365586d4d5f90a9fcdcd61e9b25ec37bcc62245bc81787668dcc1abe284a7": {
+      "approved_against": {
+        "body/front": "acab5a19b3b45e53f73df528dc2064ae71ed1e59e4916f57313d7671f9b68bfa"
+      },
+      "slot": "body/rear",
+      "image": "904c53c7265d13424cc44a0d782059151fa1370efbf87b459cf2803037e26cf8",
+      "parents": {
+        "body/front": "acab5a19b3b45e53f73df528dc2064ae71ed1e59e4916f57313d7671f9b68bfa"
+      },
+      "license": "CC0-1.0",
+      "attribution": "PanelTree synthetic geometric fixture"
+    },
+    "ef35d2ddc21981e026d22cd95f1f3521a6029dff62fbb190113b6efa7db8de58": {
+      "approved_against": {
+        "body/front": "acab5a19b3b45e53f73df528dc2064ae71ed1e59e4916f57313d7671f9b68bfa"
+      },
+      "slot": "body/right",
+      "image": "c9d358e3cec62dd51908b92d730ab6eb4df08df8a85e88847936d02430224196",
+      "parents": {
+        "body/front": "acab5a19b3b45e53f73df528dc2064ae71ed1e59e4916f57313d7671f9b68bfa"
+      },
+      "license": "CC0-1.0",
+      "attribution": "PanelTree synthetic geometric fixture"
+    }
+  },
+  "published": {
+    "1": {
+      "candidates": {
+        "306c7f7b8077b80e8736612b18b510805f1848efd02cb6f5c94d651ca605d914": {
+          "approved_against": {
+            "body/front": "acab5a19b3b45e53f73df528dc2064ae71ed1e59e4916f57313d7671f9b68bfa"
+          },
+          "slot": "body/left",
+          "image": "c396520d01fcaaf98265a1b8aa837fc679d315c7d3e8a6cdc9c72fe5fd2687f8",
+          "parents": {
+            "body/front": "acab5a19b3b45e53f73df528dc2064ae71ed1e59e4916f57313d7671f9b68bfa"
+          },
+          "license": "CC0-1.0",
+          "attribution": "PanelTree synthetic geometric fixture"
+        },
+        "38b6ca739b91c31634176e232bbd94e6f9391500dea98efb512ed71bb2d3a15e": {
+          "approved_against": {
+            "body/left": "306c7f7b8077b80e8736612b18b510805f1848efd02cb6f5c94d651ca605d914",
+            "head/front": "6a53e4809847e1014bdd60529acdf2e58356d51a05799ee6c1c0bf20ee2d04bc"
+          },
+          "slot": "head/left",
+          "image": "b1283fe316b1c46b4d34b8a6450fcf434c3436d3ed72c617f78dc1f0de7a2105",
+          "parents": {
+            "body/left": "306c7f7b8077b80e8736612b18b510805f1848efd02cb6f5c94d651ca605d914",
+            "head/front": "6a53e4809847e1014bdd60529acdf2e58356d51a05799ee6c1c0bf20ee2d04bc"
+          },
+          "license": "CC0-1.0",
+          "attribution": "PanelTree synthetic geometric fixture"
+        },
+        "3cf2470683aa5b53f03a1b7a1b68729b74d83d3fabb548b4e7e1191741d150ce": {
+          "approved_against": {
+            "body/right": "ef35d2ddc21981e026d22cd95f1f3521a6029dff62fbb190113b6efa7db8de58",
+            "head/front": "6a53e4809847e1014bdd60529acdf2e58356d51a05799ee6c1c0bf20ee2d04bc"
+          },
+          "slot": "head/right",
+          "image": "f0517d144aa2bae051c6f304ac3ab6bebf028e8ed5659ebadc9fdc37ab774912",
+          "parents": {
+            "body/right": "ef35d2ddc21981e026d22cd95f1f3521a6029dff62fbb190113b6efa7db8de58",
+            "head/front": "6a53e4809847e1014bdd60529acdf2e58356d51a05799ee6c1c0bf20ee2d04bc"
+          },
+          "license": "CC0-1.0",
+          "attribution": "PanelTree synthetic geometric fixture"
+        },
+        "4db6075a3ae0909f0530cb22f2279ea7cdea1ed64ed29c230ecc2f2b08225f6d": {
+          "approved_against": {
+            "body/rear": "e5b365586d4d5f90a9fcdcd61e9b25ec37bcc62245bc81787668dcc1abe284a7",
+            "head/front": "6a53e4809847e1014bdd60529acdf2e58356d51a05799ee6c1c0bf20ee2d04bc"
+          },
+          "slot": "head/rear",
+          "image": "1c3705962b85ffeaa12a6ed062118f081598caa6036060556ae34ceb5bbf60b9",
+          "parents": {
+            "body/rear": "e5b365586d4d5f90a9fcdcd61e9b25ec37bcc62245bc81787668dcc1abe284a7",
+            "head/front": "6a53e4809847e1014bdd60529acdf2e58356d51a05799ee6c1c0bf20ee2d04bc"
+          },
+          "license": "CC0-1.0",
+          "attribution": "PanelTree synthetic geometric fixture"
+        },
+        "6a53e4809847e1014bdd60529acdf2e58356d51a05799ee6c1c0bf20ee2d04bc": {
+          "approved_against": {
+            "body/front": "acab5a19b3b45e53f73df528dc2064ae71ed1e59e4916f57313d7671f9b68bfa"
+          },
+          "slot": "head/front",
+          "image": "9fed69fbd91f7479d1a9640c2ec8c218a8d89cd5621f92beae2cda254f8fd88f",
+          "parents": {
+            "body/front": "acab5a19b3b45e53f73df528dc2064ae71ed1e59e4916f57313d7671f9b68bfa"
+          },
+          "license": "CC0-1.0",
+          "attribution": "PanelTree synthetic geometric fixture"
+        },
+        "acab5a19b3b45e53f73df528dc2064ae71ed1e59e4916f57313d7671f9b68bfa": {
+          "approved_against": {},
+          "slot": "body/front",
+          "image": "ab905290df6f3dd07446cb54b8c7ab71d8651b676a6d7b2c16aacd57531c5774",
+          "parents": {},
+          "license": "CC0-1.0",
+          "attribution": "PanelTree synthetic geometric fixture"
+        },
+        "e5b365586d4d5f90a9fcdcd61e9b25ec37bcc62245bc81787668dcc1abe284a7": {
+          "approved_against": {
+            "body/front": "acab5a19b3b45e53f73df528dc2064ae71ed1e59e4916f57313d7671f9b68bfa"
+          },
+          "slot": "body/rear",
+          "image": "904c53c7265d13424cc44a0d782059151fa1370efbf87b459cf2803037e26cf8",
+          "parents": {
+            "body/front": "acab5a19b3b45e53f73df528dc2064ae71ed1e59e4916f57313d7671f9b68bfa"
+          },
+          "license": "CC0-1.0",
+          "attribution": "PanelTree synthetic geometric fixture"
+        },
+        "ef35d2ddc21981e026d22cd95f1f3521a6029dff62fbb190113b6efa7db8de58": {
+          "approved_against": {
+            "body/front": "acab5a19b3b45e53f73df528dc2064ae71ed1e59e4916f57313d7671f9b68bfa"
+          },
+          "slot": "body/right",
+          "image": "c9d358e3cec62dd51908b92d730ab6eb4df08df8a85e88847936d02430224196",
+          "parents": {
+            "body/front": "acab5a19b3b45e53f73df528dc2064ae71ed1e59e4916f57313d7671f9b68bfa"
+          },
+          "license": "CC0-1.0",
+          "attribution": "PanelTree synthetic geometric fixture"
+        }
+      },
+      "packing": "directional-card/v1",
+      "accepted": {
+        "body/front": "acab5a19b3b45e53f73df528dc2064ae71ed1e59e4916f57313d7671f9b68bfa",
+        "body/left": "306c7f7b8077b80e8736612b18b510805f1848efd02cb6f5c94d651ca605d914",
+        "body/rear": "e5b365586d4d5f90a9fcdcd61e9b25ec37bcc62245bc81787668dcc1abe284a7",
+        "body/right": "ef35d2ddc21981e026d22cd95f1f3521a6029dff62fbb190113b6efa7db8de58",
+        "head/front": "6a53e4809847e1014bdd60529acdf2e58356d51a05799ee6c1c0bf20ee2d04bc",
+        "head/left": "38b6ca739b91c31634176e232bbd94e6f9391500dea98efb512ed71bb2d3a15e",
+        "head/rear": "4db6075a3ae0909f0530cb22f2279ea7cdea1ed64ed29c230ecc2f2b08225f6d",
+        "head/right": "3cf2470683aa5b53f03a1b7a1b68729b74d83d3fabb548b4e7e1191741d150ce"
+      },
+      "cards": {
+        "front": "c7efaa8ba1f36f0ff3ed7e511862e6f5261e9a3f853a002a263bf0924d162b5c",
+        "left": "150eb203f3623bc4039b535f6bb450dab367778227e6e8121f12574726f07ac8",
+        "rear": "01e06961cb07b1fee4aaa676eff7e839c810ceb328741c79a92d038943820fb1",
+        "right": "64d27b8200230ff403f5b0383fa5e2818bf744c09bf15d2cf5ae5868dec564ed"
+      }
+    }
+  }
+}
