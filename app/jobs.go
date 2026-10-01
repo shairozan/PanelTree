@@ -9,6 +9,7 @@ import (
 	"github.com/shairozan/PanelTree/internal/adapters"
 	"github.com/shairozan/PanelTree/internal/asset"
 	"github.com/shairozan/PanelTree/internal/build"
+	"github.com/shairozan/PanelTree/internal/characters"
 	"github.com/shairozan/PanelTree/internal/export"
 	"github.com/shairozan/PanelTree/internal/jobs"
 	"github.com/shairozan/PanelTree/internal/layout"
@@ -23,28 +24,34 @@ import (
 )
 
 type Job struct {
+	CharacterStatus     string `json:"character_status,omitempty"`
+	CharacterDiagnostic string `json:"character_diagnostic,omitempty"`
 	jobs.Job
 	GenerationProvenance *GenerationProvenance `json:"generation_provenance,omitempty"`
 }
 type GenerationProvenance struct {
-	BackendIdentity string            `json:"backend_identity"`
-	Adapter         string            `json:"adapter"`
-	Profile         string            `json:"profile"`
-	ProfileHash     string            `json:"profile_hash"`
-	Models          map[string]string `json:"models"`
-	Seed            uint64            `json:"seed"`
-	Output          string            `json:"output"`
-	Width           int               `json:"width"`
-	Height          int               `json:"height"`
+	Character       *model.ResolvedCharacter `json:"character,omitempty"`
+	Limitations     []string                 `json:"limitations,omitempty"`
+	BackendIdentity string                   `json:"backend_identity"`
+	Adapter         string                   `json:"adapter"`
+	Profile         string                   `json:"profile"`
+	ProfileHash     string                   `json:"profile_hash"`
+	Models          map[string]string        `json:"models"`
+	Seed            uint64                   `json:"seed"`
+	Output          string                   `json:"output"`
+	Width           int                      `json:"width"`
+	Height          int                      `json:"height"`
 }
 type JobDiagnostic = jobs.Diagnostic
 type RendererCapability struct {
-	OutputKinds []string `json:"output_kinds,omitempty"`
-	Profile     string   `json:"profile,omitempty"`
-	Name        string   `json:"name"`
-	Version     string   `json:"version"`
-	SourceKinds []string `json:"source_kinds"`
-	Available   bool     `json:"available"`
+	CharacterCapabilities []string `json:"character_capabilities,omitempty"`
+	Limitations           []string `json:"limitations,omitempty"`
+	OutputKinds           []string `json:"output_kinds,omitempty"`
+	Profile               string   `json:"profile,omitempty"`
+	Name                  string   `json:"name"`
+	Version               string   `json:"version"`
+	SourceKinds           []string `json:"source_kinds"`
+	Available             bool     `json:"available"`
 }
 type AssetRequest struct {
 	Generation               *render.Generation
@@ -70,6 +77,8 @@ func (s *Service) Renderers() []RendererCapability {
 	if s.comfy != nil {
 		caps[1].Profile = s.comfy.Profile.Name + "/" + s.comfy.Profile.Revision
 	}
+	caps[1].CharacterCapabilities = []string{"description", "palette", "costume-description", "expression-description", "pose-description", "prop-description"}
+	caps[1].Limitations = adapters.CharacterLimitations()
 	return caps
 }
 
@@ -161,14 +170,25 @@ func (s *Service) Job(ctx context.Context, r JobRequest) (Job, error) {
 	if e != nil {
 		return Job{}, e
 	}
-	return describeJob(ctx, store, j)
+	out, e := describeJob(ctx, store, j)
+	if e != nil {
+		return out, e
+	}
+	items := []Job{out}
+	e = s.characterStatuses(ctx, r.ProjectFile, items)
+	return items[0], e
 }
 func (s *Service) Jobs(ctx context.Context, project string) ([]Job, error) {
 	store, e := s.openJobs(ctx, project)
 	if e != nil {
 		return nil, e
 	}
-	return describeJobs(ctx, store)
+	out, e := describeJobs(ctx, store)
+	if e != nil {
+		return nil, e
+	}
+	e = s.characterStatuses(ctx, project, out)
+	return out, e
 }
 func (s *Service) CancelJob(ctx context.Context, r JobRequest) (Job, error) {
 	store, e := s.openJobs(ctx, r.ProjectFile)
@@ -192,6 +212,21 @@ func (s *Service) RunJobs(ctx context.Context, r RunJobsRequest) ([]Job, error) 
 			return nil, e
 		}
 		if input.Renderer == "comfyui" {
+			if input.Request.Character != nil {
+				e := workspace.Open(ctx, r.ProjectFile, func(w *workspace.Session) error {
+					current, e := currentCharacter(ctx, w, input.Target)
+					if e != nil {
+						return e
+					}
+					if hash(current) != hash(input.Request.Character) {
+						return &JobDiagnostic{Code: "stale_candidate", Message: "character dependencies changed since submission"}
+					}
+					return nil
+				})
+				if e != nil {
+					return nil, e
+				}
+			}
 			return s.runGeneration(ctx, input, progress)
 		}
 		if input.Version != "asset-job/v1" || input.Renderer != "builtin" || input.RendererVersion != s.Renderers()[0].Version {
@@ -249,7 +284,7 @@ func (s *Service) RunJobs(ctx context.Context, r RunJobsRequest) ([]Job, error) 
 	if e != nil {
 		return nil, e
 	}
-	return describeJobs(ctx, store)
+	return s.Jobs(ctx, r.ProjectFile)
 }
 
 func describeJob(ctx context.Context, store *jobs.Store, j jobs.Job) (Job, error) {
@@ -264,6 +299,10 @@ func describeJob(ctx context.Context, store *jobs.Store, j jobs.Job) (Job, error
 	}
 	if r := input.GenerationRecipe; r != nil {
 		out.GenerationProvenance = &GenerationProvenance{BackendIdentity: r.Profile.BackendIdentity, Adapter: r.Adapter, Profile: r.Profile.Name + "/" + r.Profile.Revision, ProfileHash: r.ProfileHash, Models: r.Profile.Models, Seed: r.Generation.Seed, Output: r.Generation.Output, Width: r.Width, Height: r.Height}
+		out.GenerationProvenance.Character = r.Character
+		if r.Character != nil {
+			out.GenerationProvenance.Limitations = adapters.CharacterLimitations()
+		}
 	}
 	return out, nil
 }
@@ -362,6 +401,12 @@ func (s *Service) snapshotAsset(ctx context.Context, w *workspace.Session, r Ass
 		request := build.LeafRequest(*leaf, resolved.Output(), "")
 		request.Revision = w.Snapshot.Revision
 		request.Generation = r.Generation
+		if r.Renderer == "comfyui" {
+			request.Character, e = characters.Resolve(ctx, w.Root, n.layer.Source.Character)
+			if e != nil {
+				return input, fmt.Errorf("character package: %w", e)
+			}
+		}
 		files := map[string][]byte{}
 		for _, rel := range []string{request.Source.Path, request.Source.Font} {
 			if rel == "" {

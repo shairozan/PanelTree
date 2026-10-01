@@ -1,0 +1,33 @@
+schema: paneltree/v0.1
+page:
+  id: character-evaluation
+  canvas: {width: 1536, height: 512}
+  background: '#ffffff'
+  layout:
+    type: row
+    children:
+      - {panel: front}
+      - {panel: turn}
+      - {panel: side}
+  panels:
+    - id: front
+      layers:
+        - id: alex
+          source:
+            kind: image
+            path: assets/hero.png
+            character: {package: alex.json, costume: coat, expression: calm, pose: front, props: [lantern]}
+    - id: turn
+      layers:
+        - id: alex
+          source:
+            kind: image
+            path: assets/hero.png
+            character: {package: alex.json, costume: coat, expression: calm, pose: turn, props: [lantern]}
+    - id: side
+      layers:
+        - id: alex
+          source:
+            kind: image
+            path: assets/hero.png
+            character: {package: alex.json, costume: coat, expression: calm, pose: side, props: [lantern]}

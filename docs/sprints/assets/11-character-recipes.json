@@ -1,0 +1,842 @@
+[
+  {
+    "target": {
+      "page": "character-evaluation",
+      "panel": "side",
+      "layer": "alex"
+    },
+    "fingerprint": "0e031589b9efc6b8dea8922008a8e00485c6fcc0aa9ac8578252b2ee750addc1",
+    "generation_recipe": {
+      "character": {
+        "use": {
+          "package": "alex.json",
+          "costume": "coat",
+          "expression": "calm",
+          "pose": "side",
+          "props": [
+            "lantern"
+          ]
+        },
+        "id": "alex",
+        "version": "1",
+        "description": "Alex, a young adult with short straight black hair, a square fringe, brown eyes and a round face",
+        "palette": [
+          "#ef6848",
+          "#182539",
+          "#eed0a0"
+        ],
+        "costume": {
+          "id": "coat",
+          "version": "1",
+          "description": "orange long-sleeved coat, dark navy trousers, black boots"
+        },
+        "expression": {
+          "id": "calm",
+          "version": "1",
+          "description": "calm neutral expression"
+        },
+        "pose": {
+          "id": "side",
+          "version": "1",
+          "description": "side profile, looking to the left"
+        },
+        "references": [
+          {
+            "id": "front-art",
+            "version": "1",
+            "path": "assets/hero.png",
+            "license": "CC0-1.0",
+            "attribution": "PanelTree original geometric demo; see assets/LICENSE.txt",
+            "description": "Geometric front-view design with orange coat, dark trousers and square black fringe",
+            "sha256": "91aa587d7c7a41b2e67d6fe83b7bf486c273b4d9e9c383ad34a35b01d9fee608"
+          }
+        ],
+        "props": [
+          {
+            "id": "lantern",
+            "version": "1",
+            "path": "assets/lantern.svg",
+            "license": "CC0-1.0",
+            "attribution": "PanelTree original geometric demo; see assets/LICENSE.txt",
+            "description": "holding a small rectangular brass lantern with a circular yellow light",
+            "sha256": "79e57faa5ad88223bb5907b4236b86302ad8cbf0d37bd9e153fd646f95886844"
+          }
+        ]
+      },
+      "adapter": "comfyui/v1",
+      "profile": {
+        "version": "comfy-profile/v1",
+        "name": "sd15-background",
+        "revision": "1",
+        "backend_identity": "comfyui:8cfe5e1ecb97512dea8deaac15e1228d7e6feeb1; docker:sha256:a63bf18f31c7ac7d7748d79a628dd661fb440371ab7e97127aead2e5475e62d8; core-nodes-only",
+        "models": {
+          "checkpoint": "sha256:6ce0161689b3853acaa03779ec93eafe75a02f4ced659bee03f50797806fa2fa"
+        },
+        "output_node": "9",
+        "workflow": {
+          "3": {
+            "class_type": "KSampler",
+            "inputs": {
+              "cfg": 7,
+              "denoise": 1,
+              "latent_image": [
+                "5",
+                0
+              ],
+              "model": [
+                "4",
+                0
+              ],
+              "negative": [
+                "7",
+                0
+              ],
+              "positive": [
+                "6",
+                0
+              ],
+              "sampler_name": "euler",
+              "scheduler": "normal",
+              "seed": 0,
+              "steps": 20
+            }
+          },
+          "4": {
+            "class_type": "CheckpointLoaderSimple",
+            "inputs": {
+              "ckpt_name": "v1-5-pruned-emaonly.safetensors"
+            }
+          },
+          "5": {
+            "class_type": "EmptyLatentImage",
+            "inputs": {
+              "batch_size": 1,
+              "height": 512,
+              "width": 512
+            }
+          },
+          "6": {
+            "class_type": "CLIPTextEncode",
+            "inputs": {
+              "clip": [
+                "4",
+                1
+              ],
+              "text": ""
+            }
+          },
+          "7": {
+            "class_type": "CLIPTextEncode",
+            "inputs": {
+              "clip": [
+                "4",
+                1
+              ],
+              "text": ""
+            }
+          },
+          "8": {
+            "class_type": "VAEDecode",
+            "inputs": {
+              "samples": [
+                "3",
+                0
+              ],
+              "vae": [
+                "4",
+                2
+              ]
+            }
+          },
+          "9": {
+            "class_type": "SaveImage",
+            "inputs": {
+              "filename_prefix": "PanelTree",
+              "images": [
+                "8",
+                0
+              ]
+            }
+          }
+        },
+        "bindings": {
+          "height": {
+            "node": "5",
+            "input": "height"
+          },
+          "negative_prompt": {
+            "node": "7",
+            "input": "text"
+          },
+          "prompt": {
+            "node": "6",
+            "input": "text"
+          },
+          "seed": {
+            "node": "3",
+            "input": "seed"
+          },
+          "width": {
+            "node": "5",
+            "input": "width"
+          }
+        }
+      },
+      "profile_hash": "241eb9ee21e62da5a91c407ac9b84c5d495018fa11073ee5724740436fd0125a",
+      "generation": {
+        "prompt": "comic book illustration, one person, full body, standing on a plain pale background",
+        "negative_prompt": "text, watermark, blurry",
+        "seed": 17,
+        "output": "rgb"
+      },
+      "width": 512,
+      "height": 512,
+      "workflow": {
+        "3": {
+          "class_type": "KSampler",
+          "inputs": {
+            "cfg": 7,
+            "denoise": 1,
+            "latent_image": [
+              "5",
+              0
+            ],
+            "model": [
+              "4",
+              0
+            ],
+            "negative": [
+              "7",
+              0
+            ],
+            "positive": [
+              "6",
+              0
+            ],
+            "sampler_name": "euler",
+            "scheduler": "normal",
+            "seed": 17,
+            "steps": 20
+          }
+        },
+        "4": {
+          "class_type": "CheckpointLoaderSimple",
+          "inputs": {
+            "ckpt_name": "v1-5-pruned-emaonly.safetensors"
+          }
+        },
+        "5": {
+          "class_type": "EmptyLatentImage",
+          "inputs": {
+            "batch_size": 1,
+            "height": 512,
+            "width": 512
+          }
+        },
+        "6": {
+          "class_type": "CLIPTextEncode",
+          "inputs": {
+            "clip": [
+              "4",
+              1
+            ],
+            "text": "comic book illustration, one person, full body, standing on a plain pale background\nCharacter: Alex, a young adult with short straight black hair, a square fringe, brown eyes and a round face; palette: #ef6848, #182539, #eed0a0; orange long-sleeved coat, dark navy trousers, black boots; calm neutral expression; side profile, looking to the left; holding a small rectangular brass lantern with a circular yellow light"
+          }
+        },
+        "7": {
+          "class_type": "CLIPTextEncode",
+          "inputs": {
+            "clip": [
+              "4",
+              1
+            ],
+            "text": "text, watermark, blurry"
+          }
+        },
+        "8": {
+          "class_type": "VAEDecode",
+          "inputs": {
+            "samples": [
+              "3",
+              0
+            ],
+            "vae": [
+              "4",
+              2
+            ]
+          }
+        },
+        "9": {
+          "class_type": "SaveImage",
+          "inputs": {
+            "filename_prefix": "PanelTree",
+            "images": [
+              "8",
+              0
+            ]
+          }
+        }
+      }
+    }
+  },
+  {
+    "target": {
+      "page": "character-evaluation",
+      "panel": "front",
+      "layer": "alex"
+    },
+    "fingerprint": "149e401b1dffc8182b0f85337bc429c220d37884adaf9be314cc42c2001f597c",
+    "generation_recipe": {
+      "character": {
+        "use": {
+          "package": "alex.json",
+          "costume": "coat",
+          "expression": "calm",
+          "pose": "front",
+          "props": [
+            "lantern"
+          ]
+        },
+        "id": "alex",
+        "version": "1",
+        "description": "Alex, a young adult with short straight black hair, a square fringe, brown eyes and a round face",
+        "palette": [
+          "#ef6848",
+          "#182539",
+          "#eed0a0"
+        ],
+        "costume": {
+          "id": "coat",
+          "version": "1",
+          "description": "orange long-sleeved coat, dark navy trousers, black boots"
+        },
+        "expression": {
+          "id": "calm",
+          "version": "1",
+          "description": "calm neutral expression"
+        },
+        "pose": {
+          "id": "front",
+          "version": "1",
+          "description": "front view, facing the viewer"
+        },
+        "references": [
+          {
+            "id": "front-art",
+            "version": "1",
+            "path": "assets/hero.png",
+            "license": "CC0-1.0",
+            "attribution": "PanelTree original geometric demo; see assets/LICENSE.txt",
+            "description": "Geometric front-view design with orange coat, dark trousers and square black fringe",
+            "sha256": "91aa587d7c7a41b2e67d6fe83b7bf486c273b4d9e9c383ad34a35b01d9fee608"
+          }
+        ],
+        "props": [
+          {
+            "id": "lantern",
+            "version": "1",
+            "path": "assets/lantern.svg",
+            "license": "CC0-1.0",
+            "attribution": "PanelTree original geometric demo; see assets/LICENSE.txt",
+            "description": "holding a small rectangular brass lantern with a circular yellow light",
+            "sha256": "79e57faa5ad88223bb5907b4236b86302ad8cbf0d37bd9e153fd646f95886844"
+          }
+        ]
+      },
+      "adapter": "comfyui/v1",
+      "profile": {
+        "version": "comfy-profile/v1",
+        "name": "sd15-background",
+        "revision": "1",
+        "backend_identity": "comfyui:8cfe5e1ecb97512dea8deaac15e1228d7e6feeb1; docker:sha256:a63bf18f31c7ac7d7748d79a628dd661fb440371ab7e97127aead2e5475e62d8; core-nodes-only",
+        "models": {
+          "checkpoint": "sha256:6ce0161689b3853acaa03779ec93eafe75a02f4ced659bee03f50797806fa2fa"
+        },
+        "output_node": "9",
+        "workflow": {
+          "3": {
+            "class_type": "KSampler",
+            "inputs": {
+              "cfg": 7,
+              "denoise": 1,
+              "latent_image": [
+                "5",
+                0
+              ],
+              "model": [
+                "4",
+                0
+              ],
+              "negative": [
+                "7",
+                0
+              ],
+              "positive": [
+                "6",
+                0
+              ],
+              "sampler_name": "euler",
+              "scheduler": "normal",
+              "seed": 0,
+              "steps": 20
+            }
+          },
+          "4": {
+            "class_type": "CheckpointLoaderSimple",
+            "inputs": {
+              "ckpt_name": "v1-5-pruned-emaonly.safetensors"
+            }
+          },
+          "5": {
+            "class_type": "EmptyLatentImage",
+            "inputs": {
+              "batch_size": 1,
+              "height": 512,
+              "width": 512
+            }
+          },
+          "6": {
+            "class_type": "CLIPTextEncode",
+            "inputs": {
+              "clip": [
+                "4",
+                1
+              ],
+              "text": ""
+            }
+          },
+          "7": {
+            "class_type": "CLIPTextEncode",
+            "inputs": {
+              "clip": [
+                "4",
+                1
+              ],
+              "text": ""
+            }
+          },
+          "8": {
+            "class_type": "VAEDecode",
+            "inputs": {
+              "samples": [
+                "3",
+                0
+              ],
+              "vae": [
+                "4",
+                2
+              ]
+            }
+          },
+          "9": {
+            "class_type": "SaveImage",
+            "inputs": {
+              "filename_prefix": "PanelTree",
+              "images": [
+                "8",
+                0
+              ]
+            }
+          }
+        },
+        "bindings": {
+          "height": {
+            "node": "5",
+            "input": "height"
+          },
+          "negative_prompt": {
+            "node": "7",
+            "input": "text"
+          },
+          "prompt": {
+            "node": "6",
+            "input": "text"
+          },
+          "seed": {
+            "node": "3",
+            "input": "seed"
+          },
+          "width": {
+            "node": "5",
+            "input": "width"
+          }
+        }
+      },
+      "profile_hash": "241eb9ee21e62da5a91c407ac9b84c5d495018fa11073ee5724740436fd0125a",
+      "generation": {
+        "prompt": "comic book illustration, one person, full body, standing on a plain pale background",
+        "negative_prompt": "text, watermark, blurry",
+        "seed": 17,
+        "output": "rgb"
+      },
+      "width": 512,
+      "height": 512,
+      "workflow": {
+        "3": {
+          "class_type": "KSampler",
+          "inputs": {
+            "cfg": 7,
+            "denoise": 1,
+            "latent_image": [
+              "5",
+              0
+            ],
+            "model": [
+              "4",
+              0
+            ],
+            "negative": [
+              "7",
+              0
+            ],
+            "positive": [
+              "6",
+              0
+            ],
+            "sampler_name": "euler",
+            "scheduler": "normal",
+            "seed": 17,
+            "steps": 20
+          }
+        },
+        "4": {
+          "class_type": "CheckpointLoaderSimple",
+          "inputs": {
+            "ckpt_name": "v1-5-pruned-emaonly.safetensors"
+          }
+        },
+        "5": {
+          "class_type": "EmptyLatentImage",
+          "inputs": {
+            "batch_size": 1,
+            "height": 512,
+            "width": 512
+          }
+        },
+        "6": {
+          "class_type": "CLIPTextEncode",
+          "inputs": {
+            "clip": [
+              "4",
+              1
+            ],
+            "text": "comic book illustration, one person, full body, standing on a plain pale background\nCharacter: Alex, a young adult with short straight black hair, a square fringe, brown eyes and a round face; palette: #ef6848, #182539, #eed0a0; orange long-sleeved coat, dark navy trousers, black boots; calm neutral expression; front view, facing the viewer; holding a small rectangular brass lantern with a circular yellow light"
+          }
+        },
+        "7": {
+          "class_type": "CLIPTextEncode",
+          "inputs": {
+            "clip": [
+              "4",
+              1
+            ],
+            "text": "text, watermark, blurry"
+          }
+        },
+        "8": {
+          "class_type": "VAEDecode",
+          "inputs": {
+            "samples": [
+              "3",
+              0
+            ],
+            "vae": [
+              "4",
+              2
+            ]
+          }
+        },
+        "9": {
+          "class_type": "SaveImage",
+          "inputs": {
+            "filename_prefix": "PanelTree",
+            "images": [
+              "8",
+              0
+            ]
+          }
+        }
+      }
+    }
+  },
+  {
+    "target": {
+      "page": "character-evaluation",
+      "panel": "turn",
+      "layer": "alex"
+    },
+    "fingerprint": "189f2357d1c64c6274ac280c3779b680a52ccfc1926a07ba16ebd35582a06b10",
+    "generation_recipe": {
+      "character": {
+        "use": {
+          "package": "alex.json",
+          "costume": "coat",
+          "expression": "calm",
+          "pose": "turn",
+          "props": [
+            "lantern"
+          ]
+        },
+        "id": "alex",
+        "version": "1",
+        "description": "Alex, a young adult with short straight black hair, a square fringe, brown eyes and a round face",
+        "palette": [
+          "#ef6848",
+          "#182539",
+          "#eed0a0"
+        ],
+        "costume": {
+          "id": "coat",
+          "version": "1",
+          "description": "orange long-sleeved coat, dark navy trousers, black boots"
+        },
+        "expression": {
+          "id": "calm",
+          "version": "1",
+          "description": "calm neutral expression"
+        },
+        "pose": {
+          "id": "turn",
+          "version": "1",
+          "description": "three-quarter view, looking to the left"
+        },
+        "references": [
+          {
+            "id": "front-art",
+            "version": "1",
+            "path": "assets/hero.png",
+            "license": "CC0-1.0",
+            "attribution": "PanelTree original geometric demo; see assets/LICENSE.txt",
+            "description": "Geometric front-view design with orange coat, dark trousers and square black fringe",
+            "sha256": "91aa587d7c7a41b2e67d6fe83b7bf486c273b4d9e9c383ad34a35b01d9fee608"
+          }
+        ],
+        "props": [
+          {
+            "id": "lantern",
+            "version": "1",
+            "path": "assets/lantern.svg",
+            "license": "CC0-1.0",
+            "attribution": "PanelTree original geometric demo; see assets/LICENSE.txt",
+            "description": "holding a small rectangular brass lantern with a circular yellow light",
+            "sha256": "79e57faa5ad88223bb5907b4236b86302ad8cbf0d37bd9e153fd646f95886844"
+          }
+        ]
+      },
+      "adapter": "comfyui/v1",
+      "profile": {
+        "version": "comfy-profile/v1",
+        "name": "sd15-background",
+        "revision": "1",
+        "backend_identity": "comfyui:8cfe5e1ecb97512dea8deaac15e1228d7e6feeb1; docker:sha256:a63bf18f31c7ac7d7748d79a628dd661fb440371ab7e97127aead2e5475e62d8; core-nodes-only",
+        "models": {
+          "checkpoint": "sha256:6ce0161689b3853acaa03779ec93eafe75a02f4ced659bee03f50797806fa2fa"
+        },
+        "output_node": "9",
+        "workflow": {
+          "3": {
+            "class_type": "KSampler",
+            "inputs": {
+              "cfg": 7,
+              "denoise": 1,
+              "latent_image": [
+                "5",
+                0
+              ],
+              "model": [
+                "4",
+                0
+              ],
+              "negative": [
+                "7",
+                0
+              ],
+              "positive": [
+                "6",
+                0
+              ],
+              "sampler_name": "euler",
+              "scheduler": "normal",
+              "seed": 0,
+              "steps": 20
+            }
+          },
+          "4": {
+            "class_type": "CheckpointLoaderSimple",
+            "inputs": {
+              "ckpt_name": "v1-5-pruned-emaonly.safetensors"
+            }
+          },
+          "5": {
+            "class_type": "EmptyLatentImage",
+            "inputs": {
+              "batch_size": 1,
+              "height": 512,
+              "width": 512
+            }
+          },
+          "6": {
+            "class_type": "CLIPTextEncode",
+            "inputs": {
+              "clip": [
+                "4",
+                1
+              ],
+              "text": ""
+            }
+          },
+          "7": {
+            "class_type": "CLIPTextEncode",
+            "inputs": {
+              "clip": [
+                "4",
+                1
+              ],
+              "text": ""
+            }
+          },
+          "8": {
+            "class_type": "VAEDecode",
+            "inputs": {
+              "samples": [
+                "3",
+                0
+              ],
+              "vae": [
+                "4",
+                2
+              ]
+            }
+          },
+          "9": {
+            "class_type": "SaveImage",
+            "inputs": {
+              "filename_prefix": "PanelTree",
+              "images": [
+                "8",
+                0
+              ]
+            }
+          }
+        },
+        "bindings": {
+          "height": {
+            "node": "5",
+            "input": "height"
+          },
+          "negative_prompt": {
+            "node": "7",
+            "input": "text"
+          },
+          "prompt": {
+            "node": "6",
+            "input": "text"
+          },
+          "seed": {
+            "node": "3",
+            "input": "seed"
+          },
+          "width": {
+            "node": "5",
+            "input": "width"
+          }
+        }
+      },
+      "profile_hash": "241eb9ee21e62da5a91c407ac9b84c5d495018fa11073ee5724740436fd0125a",
+      "generation": {
+        "prompt": "comic book illustration, one person, full body, standing on a plain pale background",
+        "negative_prompt": "text, watermark, blurry",
+        "seed": 17,
+        "output": "rgb"
+      },
+      "width": 512,
+      "height": 512,
+      "workflow": {
+        "3": {
+          "class_type": "KSampler",
+          "inputs": {
+            "cfg": 7,
+            "denoise": 1,
+            "latent_image": [
+              "5",
+              0
+            ],
+            "model": [
+              "4",
+              0
+            ],
+            "negative": [
+              "7",
+              0
+            ],
+            "positive": [
+              "6",
+              0
+            ],
+            "sampler_name": "euler",
+            "scheduler": "normal",
+            "seed": 17,
+            "steps": 20
+          }
+        },
+        "4": {
+          "class_type": "CheckpointLoaderSimple",
+          "inputs": {
+            "ckpt_name": "v1-5-pruned-emaonly.safetensors"
+          }
+        },
+        "5": {
+          "class_type": "EmptyLatentImage",
+          "inputs": {
+            "batch_size": 1,
+            "height": 512,
+            "width": 512
+          }
+        },
+        "6": {
+          "class_type": "CLIPTextEncode",
+          "inputs": {
+            "clip": [
+              "4",
+              1
+            ],
+            "text": "comic book illustration, one person, full body, standing on a plain pale background\nCharacter: Alex, a young adult with short straight black hair, a square fringe, brown eyes and a round face; palette: #ef6848, #182539, #eed0a0; orange long-sleeved coat, dark navy trousers, black boots; calm neutral expression; three-quarter view, looking to the left; holding a small rectangular brass lantern with a circular yellow light"
+          }
+        },
+        "7": {
+          "class_type": "CLIPTextEncode",
+          "inputs": {
+            "clip": [
+              "4",
+              1
+            ],
+            "text": "text, watermark, blurry"
+          }
+        },
+        "8": {
+          "class_type": "VAEDecode",
+          "inputs": {
+            "samples": [
+              "3",
+              0
+            ],
+            "vae": [
+              "4",
+              2
+            ]
+          }
+        },
+        "9": {
+          "class_type": "SaveImage",
+          "inputs": {
+            "filename_prefix": "PanelTree",
+            "images": [
+              "8",
+              0
+            ]
+          }
+        }
+      }
+    }
+  }
+]

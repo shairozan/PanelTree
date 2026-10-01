@@ -1,0 +1,23 @@
+{
+  "schema": "paneltree/character/v1",
+  "id": "alex",
+  "version": "1",
+  "description": "Alex, a young adult with short straight black hair, a square fringe, brown eyes and a round face",
+  "palette": ["#ef6848", "#182539", "#eed0a0"],
+  "references": [
+    {"id": "front-art", "version": "1", "path": "assets/hero.png", "license": "CC0-1.0", "attribution": "PanelTree original geometric demo; see assets/LICENSE.txt", "description": "Geometric front-view design with orange coat, dark trousers and square black fringe"}
+  ],
+  "costumes": [
+    {"id": "coat", "version": "1", "description": "orange long-sleeved coat, dark navy trousers, black boots"},
+    {"id": "summer", "version": "1", "description": "white shirt and dark navy trousers"}
+  ],
+  "expressions": [{"id": "calm", "version": "1", "description": "calm neutral expression"}],
+  "poses": [
+    {"id": "front", "version": "1", "description": "front view, facing the viewer"},
+    {"id": "turn", "version": "1", "description": "three-quarter view, looking to the left"},
+    {"id": "side", "version": "1", "description": "side profile, looking to the left"}
+  ],
+  "props": [
+    {"id": "lantern", "version": "1", "path": "assets/lantern.svg", "license": "CC0-1.0", "attribution": "PanelTree original geometric demo; see assets/LICENSE.txt", "description": "holding a small rectangular brass lantern with a circular yellow light"}
+  ]
+}

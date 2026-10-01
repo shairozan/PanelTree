@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -77,6 +78,9 @@ func TestComfyCLIAndMCPWorkflow(t *testing.T) {
 				t.Error(e)
 			}
 			size = image.Pt(int(b.Prompt["gen"].Inputs["width"].(float64)), int(b.Prompt["gen"].Inputs["height"].(float64)))
+			if prompt, ok := b.Prompt["gen"].Inputs["prompt"].(string); !ok || !strings.Contains(prompt, "Alex with short black hair") {
+				t.Error("character description did not reach renderer")
+			}
 			_, _ = w.Write([]byte(`{"prompt_id":"id"}`))
 		case "/history/id":
 			_, _ = w.Write([]byte(`{"id":{"status":{"completed":true,"status_str":"success"},"outputs":{"out":{"images":[{"filename":"a.png","type":"output"}]}}}}`))
@@ -103,6 +107,18 @@ func TestComfyCLIAndMCPWorkflow(t *testing.T) {
 		t.Fatal(e)
 	}
 	p := filepath.Join(book, "project.yaml")
+	pageFile := filepath.Join(book, "pages", "01.yaml")
+	pageData, e := os.ReadFile(pageFile)
+	if e != nil {
+		t.Fatal(e)
+	}
+	pageData = bytes.ReplaceAll(pageData, []byte("path: ../assets/setting.png}"), []byte("path: ../assets/setting.png, character: {package: alex.json}}"))
+	if e = os.WriteFile(pageFile, pageData, 0600); e != nil {
+		t.Fatal(e)
+	}
+	if e = os.WriteFile(filepath.Join(book, "alex.json"), []byte(`{"schema":"paneltree/character/v1","id":"alex","version":"1","description":"Alex with short black hair"}`), 0600); e != nil {
+		t.Fatal(e)
+	}
 	out, e := executeProject(t, "inspect", p)
 	if e != nil {
 		t.Fatal(e)
@@ -119,6 +135,9 @@ func TestComfyCLIAndMCPWorkflow(t *testing.T) {
 	var job app.Job
 	if e = json.Unmarshal([]byte(out), &job); e != nil {
 		t.Fatal(e)
+	}
+	if job.CharacterStatus != "current" || job.GenerationProvenance.Character == nil {
+		t.Fatal("CLI omitted character provenance")
 	}
 	if _, e = executeProject(t, "jobs", "run", p, "--config", cfg); e != nil {
 		t.Fatal(e)
@@ -169,6 +188,9 @@ func TestComfyCLIAndMCPWorkflow(t *testing.T) {
 	invoke("jobs_status", map[string]any{"project_file": p, "id": job.ID}, &job)
 	if job.State != "succeeded" || job.GenerationProvenance == nil || job.GenerationProvenance.Seed != 18 {
 		t.Fatalf("MCP generation: %+v", job)
+	}
+	if job.CharacterStatus != "current" || job.GenerationProvenance.Character == nil || len(job.GenerationProvenance.Limitations) == 0 {
+		t.Fatal("MCP omitted character provenance/capability limits")
 	}
 	invoke("asset_select", map[string]any{"project_file": p, "id": job.ID, "expected_revision": view.Revision}, &app.EditResult{})
 	if posts.Load() != 2 {

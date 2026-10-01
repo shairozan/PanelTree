@@ -52,6 +52,9 @@ bounded execution, cancellation, recovery, and explicit candidate selection.
 See [ComfyUI generation](docs/comfyui.md) for optional RGB drafts, versioned
 profiles, backend/model/seed provenance and an opt-in real-backend smoke test.
 
+See [character packages](docs/characters.md) for shared versioned identities,
+selected-state dependencies, reference/license provenance and visual evaluation.
+
 See [local MCP authoring](docs/mcp.md) for client setup, allowed roots, tools,
 resources, previews, cancellation, and protocol error handling.
 
