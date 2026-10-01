@@ -25,7 +25,16 @@ func generationFixture(t *testing.T) (*adapters.ComfyUI, *atomic.Int32) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/object_info":
-			_, _ = w.Write([]byte(`{"Fake":{},"SaveImage":{}}`))
+			_, _ = w.Write([]byte(`{"Fake":{},"SaveImage":{},"LoadImage":{}}`))
+		case "/upload/image":
+			file, h, e := r.FormFile("image")
+			if e != nil {
+				t.Error(e)
+				http.Error(w, "bad upload", 400)
+				return
+			}
+			_ = file.Close()
+			_ = json.NewEncoder(w).Encode(map[string]string{"name": h.Filename, "subfolder": r.FormValue("subfolder"), "type": "input"})
 		case "/prompt":
 			posts.Add(1)
 			var body struct {

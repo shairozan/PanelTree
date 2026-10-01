@@ -55,6 +55,11 @@ profiles, backend/model/seed provenance and an opt-in real-backend smoke test.
 See [character packages](docs/characters.md) for shared versioned identities,
 selected-state dependencies, reference/license provenance and visual evaluation.
 
+See [approved character references](docs/character-references.md) for multi-view
+creation, explicit approval, immutable publication and actual image-conditioned
+reuse. The [local evaluation](docs/sprints/22-verification.md) documents the
+current SD 1.5 profile's visual limitations.
+
 See [local MCP authoring](docs/mcp.md) for client setup, allowed roots, tools,
 resources, previews, cancellation, and protocol error handling.
 

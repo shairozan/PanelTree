@@ -219,6 +219,19 @@ func NewWithService(roots []string, service *app.Service) (*protocol.Server, err
 		return out, e
 	})
 	bind(s, "renderer_list", "List available and unavailable renderer capabilities", func(context.Context, struct{}) ([]app.RendererCapability, error) { return s.service.Renderers(), nil })
+	bind(s, "character_reference", "Create, inspect, import, request, collect, accept, reject or publish approved character references", func(ctx context.Context, in app.ReferenceRequest) (app.ReferenceSet, error) {
+		var out app.ReferenceSet
+		e := s.guard(ctx, func() error {
+			p, e := s.project(in.ProjectFile, nil)
+			if e != nil {
+				return e
+			}
+			in.ProjectFile = p
+			out, e = s.service.Reference(ctx, in)
+			return e
+		})
+		return out, e
+	})
 	bind(s, "asset_request", "Queue a frozen leaf render; completion does not select it", func(ctx context.Context, in assetInput) (app.Job, error) {
 		var out app.Job
 		e := s.guard(ctx, func() error {

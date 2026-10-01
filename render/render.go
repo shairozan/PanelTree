@@ -36,13 +36,21 @@ type Descriptor struct {
 }
 type Dependency struct{ Path, ContentHash string }
 type Request struct {
-	Character  *model.ResolvedCharacter `json:"character,omitempty"`
-	Generation *Generation              `json:",omitempty"`
-	Fit        string
-	BaseDir    string
-	Source     model.Source
-	Scene      scene.Context
-	Revision   model.Revision
+	ImageInputs []ImageInput             `json:"image_inputs,omitempty"`
+	Character   *model.ResolvedCharacter `json:"character,omitempty"`
+	Generation  *Generation              `json:",omitempty"`
+	Fit         string
+	BaseDir     string
+	Source      model.Source
+	Scene       scene.Context
+	Revision    model.Revision
+}
+
+// ImageInput is a frozen PNG, never a backend path or a textual reference.
+type ImageInput struct {
+	Role   string `json:"role"`
+	SHA256 string `json:"sha256"`
+	PNG    []byte `json:"png"`
 }
 
 // Generation is a backend-neutral request for a draft candidate, never a selection.

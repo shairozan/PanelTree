@@ -3,11 +3,20 @@ package model
 // CharacterUse refers to a package relative to the owning project directory.
 // Descriptions live in the package, not in each panel.
 type CharacterUse struct {
-	Package    string   `yaml:"package" json:"package"`
-	Costume    string   `yaml:"costume,omitempty" json:"costume,omitempty"`
-	Expression string   `yaml:"expression,omitempty" json:"expression,omitempty"`
-	Pose       string   `yaml:"pose,omitempty" json:"pose,omitempty"`
-	Props      []string `yaml:"props,omitempty" json:"props,omitempty"`
+	ReferenceSet *ReferenceSelection `yaml:"reference_set,omitempty" json:"reference_set,omitempty"`
+	Package      string              `yaml:"package" json:"package"`
+	Costume      string              `yaml:"costume,omitempty" json:"costume,omitempty"`
+	Expression   string              `yaml:"expression,omitempty" json:"expression,omitempty"`
+	Pose         string              `yaml:"pose,omitempty" json:"pose,omitempty"`
+	Props        []string            `yaml:"props,omitempty" json:"props,omitempty"`
+}
+
+// ReferenceSelection chooses immutable artwork and an explicit delivery policy.
+type ReferenceSelection struct {
+	Set        string   `yaml:"set" json:"set"`
+	Version    string   `yaml:"version" json:"version"`
+	Directions []string `yaml:"directions" json:"directions"`
+	Packing    string   `yaml:"packing" json:"packing"`
 }
 
 type CharacterPackage struct {
