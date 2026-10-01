@@ -40,7 +40,7 @@ type BuildResult struct {
 
 func (s *Service) Build(ctx context.Context, r BuildRequest) (BuildResult, error) {
 	var result BuildResult
-	err := workspace.Open(ctx, r.ProjectFile, func(w *workspace.Session) error {
+	err := s.openWorkspace(ctx, r.ProjectFile, func(w *workspace.Session) error {
 		states, e := selectedSnapshot(w)
 		if e != nil {
 			return e

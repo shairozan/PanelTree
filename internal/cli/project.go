@@ -43,6 +43,10 @@ func projectCommand(verb string, root *cobra.Command) *cobra.Command {
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		var result any
 		var err error
+		service, err = configuredService(cmd.Context(), cfg)
+		if err != nil {
+			return err
+		}
 		switch verb {
 		case "init":
 			result, err = service.Init(cmd.Context(), app.InitRequest{Directory: args[0]})

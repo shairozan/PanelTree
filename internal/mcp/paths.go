@@ -128,6 +128,12 @@ func checkTree(root string, walk func(string, fs.WalkDirFunc) error) error {
 	})
 }
 func (s *server) project(p string, edits []app.DocumentEdit) (string, error) {
+	if strings.HasPrefix(p, "pg:") {
+		if !s.service.HasStorage() {
+			return "", fmt.Errorf("PostgreSQL storage is not configured")
+		}
+		return p, nil
+	}
 	p, e := s.path(p)
 	if e != nil {
 		return "", e

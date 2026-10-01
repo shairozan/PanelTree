@@ -71,7 +71,7 @@ func jobCommand(verb string, root *cobra.Command) *cobra.Command {
 			return e
 		}
 		var e error
-		service, e = app.NewRuntimeService(cfg.ComfyURL, cfg.ComfyProfile, cfg.Generation)
+		service, e = configuredService(cmd.Context(), cfg)
 		return e
 	}
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {

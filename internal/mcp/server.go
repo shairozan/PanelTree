@@ -8,11 +8,13 @@ import (
 	"fmt"
 	protocol "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/shairozan/PanelTree/app"
+	"github.com/shairozan/PanelTree/internal/storage"
 	"github.com/shairozan/PanelTree/model"
 	"github.com/shairozan/PanelTree/render"
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 )
 
@@ -122,7 +124,12 @@ func NewWithService(roots []string, service *app.Service) (*protocol.Server, err
 	}) (app.InitResult, error) {
 		var out app.InitResult
 		e := s.guard(ctx, func() error {
-			p, e := s.path(in.Directory)
+			p, e := in.Directory, error(nil)
+			if !strings.HasPrefix(p, "pg:") {
+				p, e = s.path(in.Directory)
+			} else if !s.service.HasStorage() {
+				return fmt.Errorf("PostgreSQL storage is not configured")
+			}
 			if e != nil {
 				return e
 			}
@@ -214,6 +221,42 @@ func NewWithService(roots []string, service *app.Service) (*protocol.Server, err
 				}
 			}
 			out, e = s.service.Edit(ctx, app.EditRequest{ProjectFile: p, ExpectedRevision: in.Revision, Edits: in.Edits, Operations: in.Operations})
+			return e
+		})
+		return out, e
+	})
+	bind(s, "storage_manage", "Explicit PostgreSQL migration, project import/export and listing", func(ctx context.Context, in app.StorageRequest) (app.StorageResult, error) {
+		var out app.StorageResult
+		e := s.guard(ctx, func() error {
+			var e error
+			if in.ProjectFile != "" {
+				in.ProjectFile, e = s.project(in.ProjectFile, nil)
+				if e != nil {
+					return e
+				}
+			}
+			if in.Path != "" {
+				in.Path, e = s.path(in.Path)
+				if e != nil {
+					return e
+				}
+			}
+			out, e = s.service.Storage(ctx, in)
+			return e
+		})
+		return out, e
+	})
+	bind(s, "character_library", "Publish, list, use or delete shared immutable character versions", func(ctx context.Context, in app.LibraryRequest) ([]storage.LibraryVersion, error) {
+		var out []storage.LibraryVersion
+		e := s.guard(ctx, func() error {
+			var e error
+			if in.ProjectFile != "" {
+				in.ProjectFile, e = s.project(in.ProjectFile, nil)
+				if e != nil {
+					return e
+				}
+			}
+			out, e = s.service.Library(ctx, in)
 			return e
 		})
 		return out, e

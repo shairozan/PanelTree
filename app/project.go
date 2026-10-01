@@ -8,10 +8,12 @@ import (
 	"github.com/shairozan/PanelTree/internal/adapters"
 	"github.com/shairozan/PanelTree/internal/layout"
 	"github.com/shairozan/PanelTree/internal/project"
+	"github.com/shairozan/PanelTree/internal/storage"
 	"github.com/shairozan/PanelTree/internal/workspace"
 	"github.com/shairozan/PanelTree/render"
 	"github.com/shairozan/PanelTree/scene"
 	"path/filepath"
+	"strings"
 )
 
 type Snapshot = project.Snapshot
@@ -38,6 +40,7 @@ type ValidateResult struct {
 	PageCount int  `json:"page_count"`
 }
 type Service struct {
+	storage    *storage.Postgres
 	generation render.GenerationConfig
 	ideogram   *adapters.Ideogram
 	comfy      *adapters.ComfyUI
@@ -60,6 +63,9 @@ func NewService(options ...ServiceOption) *Service {
 	return s
 }
 func (s *Service) Init(ctx context.Context, r InitRequest) (InitResult, error) {
+	if strings.HasPrefix(r.Directory, "pg:") {
+		return s.initDatabase(ctx, r.Directory)
+	}
 	if err := ctx.Err(); err != nil {
 		return InitResult{}, err
 	}
@@ -68,7 +74,7 @@ func (s *Service) Init(ctx context.Context, r InitRequest) (InitResult, error) {
 }
 func (s *Service) Inspect(ctx context.Context, r InspectRequest) (*Inspection, error) {
 	var result *Inspection
-	err := workspace.Open(ctx, r.ProjectFile, func(w *workspace.Session) error {
+	err := s.openWorkspace(ctx, r.ProjectFile, func(w *workspace.Session) error {
 		data, e := json.Marshal(w.Snapshot)
 		if e != nil {
 			return e
@@ -85,6 +91,24 @@ func (s *Service) Inspect(ctx context.Context, r InspectRequest) (*Inspection, e
 		if result != nil {
 			result.Snapshot = &original
 			result.Layers = states
+			if strings.HasPrefix(w.Handle, "pg:") {
+				relative := func(path string) string {
+					r, err := filepath.Rel(w.Root, path)
+					if err != nil {
+						return path
+					}
+					return filepath.ToSlash(r)
+				}
+				for i := range result.Documents {
+					result.Documents[i].File = relative(result.Documents[i].File)
+				}
+				for i := range result.Pages {
+					result.Pages[i].File = relative(result.Pages[i].File)
+				}
+				for i := range result.Scenes {
+					result.Scenes[i].File = relative(result.Scenes[i].File)
+				}
+			}
 		}
 		return e
 	})
@@ -109,7 +133,7 @@ func (s *Service) Validate(ctx context.Context, r InspectRequest) (ValidateResul
 		return ValidateResult{}, err
 	}
 	var result ValidateResult
-	err := workspace.Open(ctx, r.ProjectFile, func(w *workspace.Session) error {
+	err := s.openWorkspace(ctx, r.ProjectFile, func(w *workspace.Session) error {
 		if _, e := selectedSnapshot(w); e != nil {
 			return e
 		}
@@ -118,3 +142,5 @@ func (s *Service) Validate(ctx context.Context, r InspectRequest) (ValidateResul
 	})
 	return result, err
 }
+
+func WithStorage(p *storage.Postgres) ServiceOption { return func(s *Service) { s.storage = p } }

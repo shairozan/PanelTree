@@ -263,7 +263,7 @@ func saveReference(root string, set *ReferenceSet) error {
 // their approval state independent of editorial selections and project revision.
 func (s *Service) Reference(ctx context.Context, r ReferenceRequest) (ReferenceSet, error) {
 	var set ReferenceSet
-	e := workspace.Open(ctx, r.ProjectFile, func(w *workspace.Session) error {
+	e := s.openWorkspace(ctx, r.ProjectFile, func(w *workspace.Session) error {
 		if w.Entry != w.Owner {
 			return fmt.Errorf("use the owning project")
 		}
@@ -293,7 +293,7 @@ func (s *Service) Reference(ctx context.Context, r ReferenceRequest) (ReferenceS
 		}
 		switch r.Action {
 		case "collect":
-			store, e := jobStore(w)
+			store, e := s.jobStore(w)
 			if e != nil {
 				return e
 			}
@@ -453,7 +453,7 @@ func (s *Service) requestReference(ctx context.Context, w *workspace.Session, r 
 	if renderer == "comfyui" && s.comfy == nil {
 		return fmt.Errorf("configure a ComfyUI profile")
 	}
-	store, e := jobStore(w)
+	store, e := s.jobStore(w)
 	if e != nil {
 		return e
 	}

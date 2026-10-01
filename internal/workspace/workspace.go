@@ -24,6 +24,7 @@ type Changeset struct {
 	Edits            []Edit         `json:"edits"`
 }
 type Session struct {
+	Handle      string
 	Validate    func(*project.Snapshot) ([]byte, error)
 	Root, Entry string
 	Owner       string
