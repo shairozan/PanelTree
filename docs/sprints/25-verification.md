@@ -70,3 +70,27 @@ there is no automatic file/database synchronization. Database records and blobs 
 be backed up together with writers stopped. Old library bindings/orphan blobs are
 retained conservatively; garbage collection, cloud blob storage and UI are out of scope.
 Current storage materializes operation-local files to keep renderer contracts unchanged.
+
+
+## Follow-up: CI race failures
+
+The hosted race log supplied by the user showed the Ideogram success-path test
+exceeding its one-second request deadline, and the MCP cancellation test exceeding
+a two-second watchdog that included server initialization.
+
+- Pre-encode the unchanged 1024x1024 PNG fixture before the Ideogram request and use
+  a ten-second success-path budget. Preserve submit/poll/resume, exactly-one-paid-
+  submission and ambiguous-submission refusal assertions. Production deadlines and
+  the separate pending-request timeout test are unchanged.
+- Synchronize MCP cancellation with the first input read, then assert input Close
+  was called. This stronger test failed before implementation with `input not closed`.
+  The server previously hid the pipe/stdin Close method behind io.NopCloser. Preserve
+  io.ReadCloser inputs so transport cancellation can close them. Watchdogs allow ten
+  seconds for CI scheduling; no sleep determines when cancellation happens.
+- Local follow-up validation on Go 1.27.1 with GOMAXPROCS=2: focused race tests
+  passed ten repetitions; `go test ./...`, `go vet ./...`, CI-pinned golangci-lint
+  v2.14.0 (zero issues), and `go test -race -count=1 ./...` all passed. No package
+  serialization flag or CI configuration change was used. PostgreSQL integration
+  tests were not enabled for this transport/test-only follow-up.
+- Independent code and documentation review passed with no actionable findings.
+  Hosted rerun is not yet verified.

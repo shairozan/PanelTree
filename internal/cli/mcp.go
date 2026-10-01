@@ -40,7 +40,12 @@ func mcpCommand(root *cobra.Command) *cobra.Command {
 		if e != nil {
 			return e
 		}
-		return s.Run(cmd.Context(), &protocol.IOTransport{Reader: io.NopCloser(cmd.InOrStdin()), Writer: writerCloser{cmd.OutOrStdout()}, MaxLineLength: 8 << 20})
+		// Preserve cancellation's ability to unblock stdin or a supplied pipe.
+		input, ok := cmd.InOrStdin().(io.ReadCloser)
+		if !ok {
+			input = io.NopCloser(cmd.InOrStdin())
+		}
+		return s.Run(cmd.Context(), &protocol.IOTransport{Reader: input, Writer: writerCloser{cmd.OutOrStdout()}, MaxLineLength: 8 << 20})
 	}
 	parent.AddCommand(cmd)
 	return parent
