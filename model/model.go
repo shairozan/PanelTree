@@ -64,13 +64,14 @@ type Transform struct {
 
 // Source describes content rather than a vendor workflow.
 type Source struct {
-	Draft    DraftRecipe `yaml:"draft,omitempty" json:"draft,omitempty"`
-	Kind     string      `yaml:"kind" json:"kind"`
-	Path     string      `yaml:"path,omitempty" json:"path,omitempty"`
-	Text     string      `yaml:"text,omitempty" json:"text,omitempty"`
-	Font     string      `yaml:"font,omitempty" json:"font,omitempty"`
-	FontSize float64     `yaml:"font_size,omitempty" json:"font_size,omitempty"`
-	Color    string      `yaml:"color,omitempty" json:"color,omitempty"`
+	Character *CharacterUse `yaml:"character,omitempty" json:"character,omitempty"`
+	Draft     DraftRecipe   `yaml:"draft,omitempty" json:"draft,omitempty"`
+	Kind      string        `yaml:"kind" json:"kind"`
+	Path      string        `yaml:"path,omitempty" json:"path,omitempty"`
+	Text      string        `yaml:"text,omitempty" json:"text,omitempty"`
+	Font      string        `yaml:"font,omitempty" json:"font,omitempty"`
+	FontSize  float64       `yaml:"font_size,omitempty" json:"font_size,omitempty"`
+	Color     string        `yaml:"color,omitempty" json:"color,omitempty"`
 }
 
 // DraftRecipe changes only through an explicit authoring edit. Static adapters

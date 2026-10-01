@@ -43,13 +43,14 @@ type ComfyProfile struct {
 	Bindings        map[string]ComfyBinding `json:"bindings"`
 }
 type ComfyRecipe struct {
-	Adapter     string               `json:"adapter"`
-	Profile     ComfyProfile         `json:"profile"`
-	ProfileHash string               `json:"profile_hash"`
-	Generation  render.Generation    `json:"generation"`
-	Width       int                  `json:"width"`
-	Height      int                  `json:"height"`
-	Workflow    map[string]ComfyNode `json:"workflow"`
+	Character   *model.ResolvedCharacter `json:"character,omitempty"`
+	Adapter     string                   `json:"adapter"`
+	Profile     ComfyProfile             `json:"profile"`
+	ProfileHash string                   `json:"profile_hash"`
+	Generation  render.Generation        `json:"generation"`
+	Width       int                      `json:"width"`
+	Height      int                      `json:"height"`
+	Workflow    map[string]ComfyNode     `json:"workflow"`
 }
 type ComfyUI struct {
 	URL                   string
@@ -165,6 +166,19 @@ func (c *ComfyUI) Freeze(r render.Request) (ComfyRecipe, error) {
 		return out, e
 	}
 	out.Workflow = detached.Workflow
+	if r.Character != nil {
+		data, err := json.Marshal(r.Character)
+		if err != nil {
+			return out, err
+		}
+		if err = json.Unmarshal(data, &out.Character); err != nil {
+			return out, err
+		}
+		g.Prompt += characterPrompt(out.Character)
+		if len(g.Prompt) > 16384 {
+			return out, fmt.Errorf("resolved character prompt too long")
+		}
+	}
 	values := map[string]any{"prompt": g.Prompt, "negative_prompt": g.NegativePrompt, "seed": g.Seed, "width": out.Width, "height": out.Height}
 	for name, b := range out.Profile.Bindings {
 		out.Workflow[b.Node].Inputs[b.Input] = values[name]
@@ -177,7 +191,7 @@ func (c *ComfyUI) Generate(ctx context.Context, r ComfyRecipe) (result image.Ima
 	}
 	// Reject altered recipes and unsupported outputs before contacting the backend.
 	check := &ComfyUI{Profile: r.Profile}
-	expected, e := check.Freeze(render.Request{Generation: &r.Generation, Scene: scene.Context{PixelSize: model.Canvas{Width: float64(r.Width), Height: float64(r.Height)}}})
+	expected, e := check.Freeze(render.Request{Character: r.Character, Generation: &r.Generation, Scene: scene.Context{PixelSize: model.Canvas{Width: float64(r.Width), Height: float64(r.Height)}}})
 	if e != nil {
 		return nil, e
 	}

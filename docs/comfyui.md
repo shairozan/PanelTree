@@ -6,6 +6,11 @@ running a job never changes the current selection. Selection, approval, manual
 overrides and scoped locks use the same services as static assets. Page and
 layout YAML remain backend-neutral and unchanged.
 
+Leaves may optionally reference [character packages](characters.md). The shared
+service freezes selected descriptions and reference hashes into job inputs.
+This profile contract supports description conditioning only; job provenance and
+renderer discovery report unsupported image-reference and exact-prop capabilities.
+
 ## Configure a backend
 
 Run your own trusted ComfyUI server. Copy `examples/comfyui/` into a local runtime

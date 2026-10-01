@@ -36,7 +36,8 @@ type Descriptor struct {
 }
 type Dependency struct{ Path, ContentHash string }
 type Request struct {
-	Generation *Generation `json:",omitempty"`
+	Character  *model.ResolvedCharacter `json:"character,omitempty"`
+	Generation *Generation              `json:",omitempty"`
 	Fit        string
 	BaseDir    string
 	Source     model.Source
