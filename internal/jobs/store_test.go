@@ -304,3 +304,27 @@ func TestCancellationAndFailureNeverPublishResults(t *testing.T) {
 		t.Fatal("failed result exposed")
 	}
 }
+
+func TestRunOneLeavesOtherPreparedJobsQueued(t *testing.T) {
+	ctx := context.Background()
+	s, e := Open(t.TempDir())
+	if e != nil {
+		t.Fatal(e)
+	}
+	first := submit(t, s, "explicit")
+	other := submit(t, s, "unapproved")
+	calls := 0
+	if e = s.RunOne(ctx, first.ID, func(context.Context, json.RawMessage, func(int) error) ([]byte, error) {
+		calls++
+		return []byte("image"), nil
+	}); e != nil {
+		t.Fatal(e)
+	}
+	pending, e := s.Get(ctx, other.ID)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if calls != 1 || pending.State != Queued {
+		t.Fatalf("unapproved work executed: calls=%d state=%s", calls, pending.State)
+	}
+}

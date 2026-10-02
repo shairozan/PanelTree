@@ -2,7 +2,7 @@
 
 PostgreSQL is optional. Existing project.yaml paths still use the filesystem.
 Database projects use `pg:<id>` in the same inspect, edit, build, job and character
-reference commands. CLI, MCP and the future UI call shared application services.
+reference commands. CLI, MCP and the local browser workspace call shared application services.
 This is a trusted local/single-operator deployment, not a multi-tenant server.
 
 ## Configure and initialize
@@ -117,3 +117,8 @@ tests. The CI PostgreSQL service runs the complete suite and affected race tests
 on every push/PR; ordinary filesystem tests do not require a database. Integration
 tests create uniquely named records and temporary schemas, so never point them at
 production. No image-generation API calls are made by these tests.
+
+File-backed stories can also use a shared published version. The service copies
+immutable assets and a portable library manifest, so a later database import
+retains the version bindings. The [browser workspace](web-workspace.md) provides
+publication, reference review and explicit pinned-version selection.

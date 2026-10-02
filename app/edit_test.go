@@ -375,3 +375,21 @@ func TestAssetLockProtectsSelectionReparenting(t *testing.T) {
 		t.Fatal("rejected reparenting changed revision")
 	}
 }
+
+func TestApproveCurrentManualSelection(t *testing.T) {
+	s, p, i := editFixture(t)
+	r := applyOp(t, s, p, i.Revision, Operation{Target: target(), Action: "override", Artifact: "assets/hero.png"})
+	r = applyOp(t, s, p, r.Revision, Operation{Target: target(), Action: "review"})
+	r = applyOp(t, s, p, r.Revision, Operation{Target: target(), Action: "approve"})
+	got, e := os.ReadFile(filepath.Join(filepath.Dir(p), ".paneltree/assets", r.Layers["page-01/p1/hero"].Pin+".png"))
+	if e != nil {
+		t.Fatal(e)
+	}
+	want, e := os.ReadFile(filepath.Join(filepath.Dir(p), "assets/hero.png"))
+	if e != nil {
+		t.Fatal(e)
+	}
+	if !bytes.Equal(got, want) {
+		t.Fatal("approval replaced selected artwork")
+	}
+}

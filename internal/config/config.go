@@ -13,6 +13,7 @@ import (
 
 // Config holds typed runtime settings. Treat it as read-only after initialization.
 type Config struct {
+	WebRoots     []string                `mapstructure:"web-roots"`
 	Storage      storage.Config          `mapstructure:"storage"`
 	Generation   render.GenerationConfig `mapstructure:"generation"`
 	ComfyURL     string                  `mapstructure:"comfyui-url"`

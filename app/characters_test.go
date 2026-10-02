@@ -220,3 +220,29 @@ func TestCharacterRejectsAmbiguousReferenceIDs(t *testing.T) {
 		t.Fatal("duplicate reference IDs accepted")
 	}
 }
+
+func TestCreateImmutableCharacterPackage(t *testing.T) {
+	s, p, _ := editFixture(t)
+	ctx := context.Background()
+	pkg := model.CharacterPackage{Schema: "paneltree/character/v1", ID: "patrick", Version: "v1", Description: "Silver-haired cleric", References: []model.CharacterReference{{ID: "front", Version: "v1", Path: "assets/hero.png", License: "artist-owned", Attribution: "Creator", Description: "Front view"}}}
+	path, e := s.CreateCharacter(ctx, p, pkg)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if path != "characters/authored/patrick/v1.json" {
+		t.Fatal(path)
+	}
+	pkg.Description = "Changed"
+	if _, e = s.CreateCharacter(ctx, p, pkg); e == nil {
+		t.Fatal("published package overwritten")
+	}
+	data, e := os.ReadFile(filepath.Join(filepath.Dir(p), path))
+	if e != nil || !strings.Contains(string(data), "Silver-haired cleric") {
+		t.Fatal("original lost", e)
+	}
+	pkg.Version = "v2"
+	pkg.References[0].Path = "../../secret.png"
+	if _, e = s.CreateCharacter(ctx, p, pkg); e == nil {
+		t.Fatal("external reference accepted")
+	}
+}

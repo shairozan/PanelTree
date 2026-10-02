@@ -144,3 +144,29 @@ func (p *Postgres) DeleteLibrary(ctx context.Context, id, version string) error 
 	}
 	return nil
 }
+
+// LibraryFiles reads a complete immutable published version from canonical blobs.
+func (p *Postgres) LibraryFiles(ctx context.Context, id, version string) (LibraryVersion, map[string][]byte, error) {
+	var v LibraryVersion
+	c, e := p.readyConnect(ctx)
+	if e != nil {
+		return v, nil, e
+	}
+	defer func() { _ = c.Close(context.Background()) }()
+	var data []byte
+	if e = c.QueryRow(ctx, `SELECT payload FROM pt_library WHERE id=$1 AND version=$2`, id, version).Scan(&data); e != nil {
+		return v, nil, fmt.Errorf("library version unavailable")
+	}
+	if e = json.Unmarshal(data, &v); e != nil {
+		return v, nil, e
+	}
+	files := map[string][]byte{}
+	for path, hash := range v.Files {
+		data, e := p.get(hash)
+		if e != nil {
+			return v, nil, e
+		}
+		files[path] = data
+	}
+	return v, files, nil
+}

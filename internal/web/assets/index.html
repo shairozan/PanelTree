@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>PanelTree — Story workspace</title>
+    <link rel="stylesheet" href="/assets/style.css" />
+    <script type="module" src="/assets/app.js"></script>
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="rail">
+        <a class="brand" href="/"><span class="mark">▥</span> PanelTree</a
+        ><span class="eyebrow">YOUR STUDIO</span
+        ><button id="home" class="nav active">Projects</button
+        ><button id="characters-nav" class="nav">Character library</button>
+        <div class="rail-note">
+          ● Local workspace<br /><small>Your story. Your originals.</small>
+        </div>
+      </aside>
+      <main>
+        <fieldset id="controls">
+          <div id="status" role="status" aria-live="polite"></div>
+          <div id="error" role="alert" hidden>
+            <span></span><button id="refresh-error">Refresh project</button
+            ><button id="dismiss-error" aria-label="Dismiss error">×</button>
+          </div>
+          <section id="library">
+            <header class="page-header">
+              <div>
+                <span class="eyebrow">THE NEXT CHAPTER STARTS HERE</span>
+                <h1>Your projects</h1>
+                <p>Give your characters somewhere to go.</p>
+              </div>
+              <span class="pill">LOCAL STUDIO</span>
+            </header>
+            <div class="library-grid">
+              <section>
+                <div class="section-heading">
+                  <h2>On your drawing board</h2>
+                  <button id="refresh-projects">Refresh</button>
+                </div>
+                <div id="projects" class="project-grid"></div>
+              </section>
+              <form id="create-project" class="card">
+                <span class="eyebrow">MAKE SOMETHING NEW</span>
+                <h2>Start a story</h2>
+                <label
+                  >Project name<input
+                    id="project-name"
+                    required
+                    pattern="[A-Za-z0-9_-]+"
+                    placeholder="my-next-story" /></label
+                ><label
+                  >Storage<select id="backend">
+                    <option value="files">Files · portable project</option>
+                    <option value="postgres">
+                      PostgreSQL · shared library
+                    </option>
+                  </select></label
+                ><label>Project root<select id="project-root"></select></label
+                ><button class="primary" type="submit">Create project</button>
+                <hr />
+                <label
+                  >Existing project.yaml path<input
+                    id="register-path"
+                    placeholder="Absolute path within a project root" /></label
+                ><button id="register" type="button">
+                  Open existing project
+                </button>
+              </form>
+            </div>
+          </section>
+          <section id="workspace" hidden>
+            <header class="workspace-header">
+              <div>
+                <span class="eyebrow" id="backend-label">STORY WORKSPACE</span>
+                <h1 id="story-title"></h1>
+              </div>
+              <div class="toolbar">
+                <button id="reference-nav">Character references</button
+                ><button id="undo">Undo</button><button id="redo">Redo</button
+                ><button id="preview">Refresh preview</button
+                ><button id="export" class="primary">Export PNG</button>
+              </div>
+            </header>
+            <div id="download"></div>
+            <div class="editor">
+              <aside class="outline">
+                <span class="eyebrow">BOOK / PAGES</span>
+                <div id="pages"></div>
+                <div class="section-heading">
+                  <h2>Composition</h2>
+                  <button id="add-panel" class="small">Add panel</button>
+                </div>
+                <div id="outline"></div>
+                <div class="stack">
+                  <button id="panel-earlier">Move panel earlier</button
+                  ><button id="panel-later">Move panel later</button
+                  ><button id="add-art">Add artwork layer</button
+                  ><button id="add-text">Add lettering</button>
+                </div>
+              </aside>
+              <section class="canvas">
+                <div class="canvas-label">
+                  <span id="page-label"></span
+                  ><span>PREVIEW · NO GENERATION</span>
+                </div>
+                <div class="paper">
+                  <img id="page-preview" alt="Page preview" hidden />
+                  <div id="preview-empty">
+                    Choose a page to see your composition.
+                  </div>
+                </div>
+              </section>
+              <aside class="inspector">
+                <div class="tabs">
+                  <button id="properties-tab" class="selected">
+                    Properties</button
+                  ><button id="render-tab">Artwork & render</button>
+                </div>
+                <section id="properties">
+                  <div class="section-heading">
+                    <h2 id="selection-title">Select a layer</h2>
+                    <span id="selection-state" class="pill"></span>
+                  </div>
+                  <p id="character-binding" class="hint"></p>
+                  <form id="properties-form">
+                    <div id="character-settings" hidden>
+                      <label
+                        >Costume override<input
+                          id="costume"
+                          placeholder="Package costume ID" /></label
+                      ><label
+                        >Expression override<input
+                          id="expression"
+                          placeholder="Package expression ID" /></label
+                      ><label
+                        >Pose override<input
+                          id="pose"
+                          placeholder="Package pose ID"
+                      /></label>
+                    </div>
+                    <label>Layer role<input id="role" /></label
+                    ><label id="text-label"
+                      >Lettering text<textarea
+                        id="lettering"
+                        rows="4"
+                      ></textarea>
+                    </label>
+                    <div class="numbers">
+                      <label>X<input id="x" type="number" step="0.01" /></label
+                      ><label>Y<input id="y" type="number" step="0.01" /></label
+                      ><label
+                        >Width<input
+                          id="width"
+                          type="number"
+                          step="0.01"
+                          min="0.01" /></label
+                      ><label
+                        >Height<input
+                          id="height"
+                          type="number"
+                          step="0.01"
+                          min="0.01" /></label
+                      ><label
+                        >Scale X<input
+                          id="sx"
+                          type="number"
+                          step="0.1" /></label
+                      ><label
+                        >Scale Y<input
+                          id="sy"
+                          type="number"
+                          step="0.1" /></label
+                      ><label
+                        >Rotation<input id="rotation" type="number" /></label
+                      ><label
+                        >Font size<input id="font-size" type="number" min="1"
+                      /></label>
+                    </div>
+                    <button class="primary" type="submit">
+                      Apply properties
+                    </button>
+                  </form>
+                  <div class="button-pair">
+                    <button id="move-up">Move earlier</button
+                    ><button id="move-down">Move later</button>
+                  </div>
+                  <hr />
+                  <h3>Review & protection</h3>
+                  <p class="hint" id="selection-detail">
+                    Original artwork is preserved.
+                  </p>
+                  <div class="button-pair">
+                    <button data-op="review">Send to review</button
+                    ><button data-op="draft">Return to draft</button
+                    ><button id="approve">Approve artwork</button
+                    ><button data-op="clear-selection">Clear selection</button>
+                  </div>
+                  <label
+                    >Lock scope<select id="lock-scope">
+                      <option value="asset">Artwork</option>
+                      <option value="placement">Placement</option>
+                      <option value="all">Everything</option>
+                    </select></label
+                  >
+                  <div class="button-pair">
+                    <button id="lock">Lock layer</button
+                    ><button data-op="unlock">Unlock layer</button>
+                  </div>
+                </section>
+                <section id="render" hidden>
+                  <h2>Originals & candidates</h2>
+                  <p class="hint">
+                    Import a local anime checkpoint image, then use a hosted
+                    edit profile to change pose or action. Checkpoints stay
+                    local.
+                  </p>
+                  <label
+                    >Artwork license<input
+                      id="license"
+                      placeholder="Unknown — add what you know" /></label
+                  ><label
+                    >Artist / attribution<input
+                      id="attribution"
+                      placeholder="Source or creator" /></label
+                  ><label
+                    >Import PNG artwork<input
+                      id="upload"
+                      type="file"
+                      accept="image/png"
+                  /></label>
+                  <div id="artworks" class="thumbnails"></div>
+                  <div class="button-pair">
+                    <button id="use-art">Use selected original</button
+                    ><button id="source-art">Set as source image</button
+                    ><button id="support-art">Add supporting reference</button>
+                  </div>
+                  <h3>Source & ordered references</h3>
+                  <div id="references" class="reference-list"></div>
+                  <form id="generation-form">
+                    <label
+                      >Renderer / model profile<select id="profile"></select
+                    ></label>
+                    <p id="capability" class="hint"></p>
+                    <label
+                      >Prompt<textarea
+                        id="prompt"
+                        rows="4"
+                        placeholder="Describe the scene, pose and expression"
+                      ></textarea>
+                    </label>
+                    <div class="numbers">
+                      <label
+                        >Render width<input
+                          id="render-width"
+                          type="number"
+                          value="512"
+                          min="64"
+                          max="2048" /></label
+                      ><label
+                        >Render height<input
+                          id="render-height"
+                          type="number"
+                          value="768"
+                          min="64"
+                          max="2048" /></label
+                      ><label
+                        >Seed<input id="seed" type="number" min="0" value="42"
+                      /></label>
+                    </div>
+                    <button class="secondary" type="submit">
+                      Prepare & request estimate
+                    </button>
+                  </form>
+                  <div id="quote" hidden class="quote">
+                    <strong id="quote-status"></strong>
+                    <p id="quote-detail"></p>
+                    <button id="run" class="primary">
+                      Confirm & run this candidate
+                    </button>
+                  </div>
+                  <div id="provider-notice" class="hint"></div>
+                  <p class="hint">
+                    License metadata is not commercial-use approval. Local
+                    cancellation may not stop provider work or billing.
+                  </p>
+                  <h3>Candidate review</h3>
+                  <div id="jobs"></div>
+                </section>
+              </aside>
+            </div>
+          </section>
+          <section id="character-screen" hidden>
+            <header class="page-header">
+              <div>
+                <span class="eyebrow">REUSABLE CAST</span>
+                <h1>Character library</h1>
+                <p>
+                  Choose a published design. Each story keeps its pinned
+                  version.
+                </p>
+              </div>
+            </header>
+            <label
+              >Find a character<input
+                id="character-search"
+                type="search"
+                placeholder="Search characters" /></label
+            ><button id="character-back">Back to story</button>
+            <details class="card">
+              <summary>Create a character from the selected original</summary>
+              <form id="character-form">
+                <label
+                  >Character ID<input
+                    id="character-id"
+                    required
+                    pattern="[A-Za-z0-9_-]+" /></label
+                ><label
+                  >Package version<input
+                    id="character-version"
+                    required
+                    value="v1" /></label
+                ><label
+                  >Character description<textarea
+                    id="character-description"
+                    required
+                  ></textarea>
+                </label>
+                <p class="hint">
+                  Select an imported original in your story first. Each package
+                  version is immutable; use a new version for changes.
+                </p>
+                <button type="submit">Create character package</button>
+              </form>
+              <p id="authored-package"></p>
+              <button id="use-authored">Use authored character</button
+              ><label
+                >Published reference version (optional)<input
+                  id="library-reference-version"
+                  placeholder="Uses the currently open reference set" /></label
+              ><button id="publish-character">Publish to shared library</button>
+            </details>
+            <div id="character-list" class="project-grid"></div>
+            <div id="reference-review"></div>
+          </section>
+          <section id="reference-screen" hidden>
+            <header class="workspace-header">
+              <div>
+                <span class="eyebrow">CHARACTER DESIGN</span>
+                <h1>Reference workshop</h1>
+                <p>
+                  Approve the front, then build body and head views from that
+                  anchor.
+                </p>
+              </div>
+              <button id="reference-back">Back to story</button>
+            </header>
+            <div class="reference-workshop">
+              <aside class="card">
+                <label
+                  >Reference set ID<input
+                    id="reference-id"
+                    pattern="[A-Za-z0-9_-]+"
+                /></label>
+                <div class="button-pair">
+                  <button id="reference-create">Create reference set</button
+                  ><button id="reference-open">Open reference set</button>
+                </div>
+                <label
+                  >Reference slot<select id="reference-slot">
+                    <option>body/front</option>
+                    <option>head/front</option>
+                    <option>body/left</option>
+                    <option>body/right</option>
+                    <option>body/rear</option>
+                    <option>head/left</option>
+                    <option>head/right</option>
+                    <option>head/rear</option>
+                  </select></label
+                ><button id="reference-import">
+                  Import selected original into slot
+                </button>
+                <hr />
+                <label
+                  >Reference renderer profile<select
+                    id="reference-profile"
+                  ></select></label
+                ><label
+                  >View prompt<textarea
+                    id="reference-prompt"
+                    placeholder="Preserve costume and facial features"
+                  ></textarea></label
+                ><label
+                  >Parent anchor<select id="reference-anchor">
+                    <option value="">Automatic for one parent</option>
+                    <option>body/front</option>
+                    <option>head/front</option>
+                    <option>body/left</option>
+                    <option>body/right</option>
+                    <option>body/rear</option>
+                  </select></label
+                ><button id="reference-generate">
+                  Prepare reference candidate
+                </button>
+                <div id="reference-provider-notice" class="hint"></div>
+                <p class="hint">
+                  Uses approved parent pixels. Preparing never runs or accepts a
+                  candidate.
+                </p>
+                <hr />
+                <label
+                  >Reference publication version<input
+                    id="reference-version"
+                    value="v1" /></label
+                ><button id="reference-publish">
+                  Publish approved reference set
+                </button>
+              </aside>
+              <div>
+                <p id="reference-summary"></p>
+                <div id="reference-candidates" class="project-grid"></div>
+                <h2>Published directional cards</h2>
+                <div id="reference-cards" class="project-grid"></div>
+              </div>
+            </div>
+          </section>
+        </fieldset>
+      </main>
+    </div>
+  </body>
+</html>

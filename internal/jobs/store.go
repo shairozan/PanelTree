@@ -36,6 +36,7 @@ type Diagnostic struct {
 func (e *Diagnostic) Error() string { return e.Code + ": " + e.Message }
 
 type Job struct {
+	Rejected        bool            `json:"rejected,omitempty"`
 	Execution       json.RawMessage `json:"execution,omitempty"`
 	Resumable       bool            `json:"resumable,omitempty"`
 	ID              string          `json:"id"`
@@ -391,6 +392,9 @@ func (s *Store) Cancel(ctx context.Context, id string) (Job, error) {
 	return j, e
 }
 func (s *Store) Run(ctx context.Context, workers int, handler Handler) error {
+	return s.run(ctx, workers, handler, "")
+}
+func (s *Store) run(ctx context.Context, workers int, handler Handler, only string) error {
 	if workers < 1 || workers > 8 || handler == nil {
 		return &Diagnostic{"invalid_workers", "worker count must be between 1 and 8"}
 	}
@@ -414,7 +418,7 @@ func (s *Store) Run(ctx context.Context, workers int, handler Handler) error {
 						return e
 					}
 					for _, j := range all {
-						if j.State == Queued {
+						if j.State == Queued && (only == "" || j.ID == only) {
 							j.State = Running
 							job = j
 							return s.save(&job)
@@ -601,4 +605,36 @@ func invoke(ctx context.Context, h Handler, input json.RawMessage, p func(int) e
 		}
 	}()
 	return h(ctx, input, p)
+}
+
+// RunOne executes only the job explicitly selected by the caller.
+func (s *Store) RunOne(ctx context.Context, id string, handler Handler) error {
+	if !validID(id) {
+		return &Diagnostic{Code: "invalid_job", Message: "expected a job ID"}
+	}
+	if _, e := s.Get(ctx, id); e != nil {
+		return e
+	}
+	return s.run(ctx, 1, handler, id)
+}
+
+// Reject preserves a completed candidate's immutable pixels and its execution record.
+func (s *Store) Reject(ctx context.Context, id string) (Job, error) {
+	var j Job
+	e := s.with(ctx, func() error {
+		var e error
+		j, e = s.read(id)
+		if e != nil {
+			return e
+		}
+		if j.State != Succeeded {
+			return &Diagnostic{"not_succeeded", "only completed candidates can be rejected"}
+		}
+		if j.Rejected {
+			return nil
+		}
+		j.Rejected = true
+		return s.save(&j)
+	})
+	return j, e
 }

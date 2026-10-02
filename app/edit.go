@@ -174,6 +174,19 @@ func (s *Service) applyEdit(ctx context.Context, r EditRequest, w *workspace.Ses
 					return nil, fmt.Errorf("approval requires review state")
 				}
 				path := op.Artifact
+				if op.Action == "approve" && path == "" {
+					switch {
+					case st.Manual != "":
+						path, e = asset.ManualPath(w.Root, st.Manual)
+					case st.Pin != "":
+						path, e = asset.Resolve(w.Root, st.Pin)
+					default:
+						return nil, fmt.Errorf("select artwork before approval")
+					}
+					if e != nil {
+						return nil, e
+					}
+				}
 				if !filepath.IsAbs(path) {
 					path = filepath.Join(w.Root, path)
 				}

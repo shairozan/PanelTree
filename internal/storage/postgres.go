@@ -183,7 +183,7 @@ func (p *Postgres) save(ctx context.Context, tx pgx.Tx, id string, b bundle) err
 		}
 	}
 	for path, data := range b.Files {
-		if path == ".paneltree/state.json" || strings.HasPrefix(path, ".paneltree/references/") {
+		if path == ".paneltree/state.json" || (strings.HasPrefix(path, ".paneltree/references/") || strings.HasPrefix(path, ".paneltree/imports/")) {
 			if !json.Valid(data) {
 				return fmt.Errorf("invalid metadata %s", path)
 			}

@@ -6,7 +6,7 @@ Module: `github.com/shairozan/PanelTree`
 
 ## Status
 
-MVP (Sprint 09): strict YAML projects, recursive layout, PNG/SVG/basic-Latin lettering, portable editable SVG bundles, incremental builds, revision-aware editing, durable local asset jobs, and a local stdio MCP server. Runs locally without AI services. Sprint 10 adds optional ComfyUI RGB draft generation and explicit selection. Web editing, PDF and motion exports remain planned.
+MVP (Sprint 09): strict YAML projects, recursive layout, PNG/SVG/basic-Latin lettering, portable editable SVG bundles, incremental builds, revision-aware editing, durable local asset jobs, and a local stdio MCP server. Runs locally without AI services. Sprint 10 adds optional ComfyUI RGB draft generation and explicit selection. A local browser workspace now supports project discovery, character/reference reuse, candidate review, composition and PNG export. PDF and motion exports remain planned.
 
 Start with the [fresh-checkout walkthrough](docs/getting-started.md), [contributing](CONTRIBUTING.md), and [MVP acceptance matrix](docs/acceptance.md).
 
@@ -82,3 +82,5 @@ Runtime configuration is separate from book/page project definitions.
 For hosted generation with named profiles, see [Ideogram renderer](docs/ideogram.md) and [example runtime configuration](examples/ideogram/runtime.yaml).
 
 Optional storage: [PostgreSQL projects and shared characters](docs/postgres.md).
+
+Local browser workspace: [setup and user guide](docs/web-workspace.md).

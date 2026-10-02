@@ -98,7 +98,7 @@ func capture(entry string) (bundle, error) {
 			return nil
 		}
 		ext := strings.ToLower(filepath.Ext(rel))
-		keep := dependencies[rel] || ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".svg" || ext == ".ttf" || ext == ".otf" || strings.HasSuffix(rel, ".LICENSE") || (strings.HasPrefix(rel, "characters/") && (ext == ".json" || ext == ".yaml" || ext == ".yml")) || strings.HasPrefix(rel, ".paneltree/references/") || rel == ".paneltree/state.json"
+		keep := dependencies[rel] || ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".svg" || ext == ".ttf" || ext == ".otf" || strings.HasSuffix(rel, ".LICENSE") || (strings.HasPrefix(rel, "characters/") && (ext == ".json" || ext == ".yaml" || ext == ".yml")) || (strings.HasPrefix(rel, ".paneltree/references/") || strings.HasPrefix(rel, ".paneltree/imports/")) || rel == ".paneltree/state.json"
 		if !keep {
 			return nil
 		}

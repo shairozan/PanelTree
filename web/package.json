@@ -1,0 +1,6 @@
+{
+ "name":"paneltree-browser-checks",
+ "private":true,
+ "scripts":{"test":"node tests/run.cjs","test:browser":"node --test tests/workspace.cjs","format":"prettier --write ../internal/web/assets/* tests/*.cjs","format:check":"prettier --check ../internal/web/assets/* tests/*.cjs"},
+ "devDependencies":{"playwright":"1.62.1","prettier":"3.6.2","@axe-core/playwright":"4.10.2"}
+}

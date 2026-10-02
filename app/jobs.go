@@ -49,6 +49,8 @@ type GenerationProvenance struct {
 }
 type JobDiagnostic = jobs.Diagnostic
 type RendererCapability struct {
+	Quality               string           `json:"quality,omitempty"`
+	Size                  string           `json:"size,omitempty"`
 	Attribution           string           `json:"attribution,omitempty"`
 	UsagePolicy           string           `json:"usage_policy,omitempty"`
 	Model                 string           `json:"model,omitempty"`
@@ -114,7 +116,7 @@ func (s *Service) Renderers() []RendererCapability {
 			roles["character"] = 1
 			required["character"] = 1
 		}
-		caps = append(caps, RendererCapability{Attribution: "Powered by Ideogram", UsagePolicy: "https://ideogram.ai/legal/usage-policy/", ImageConditioning: &ImageCapability{Roles: roles, RequiredRoles: required, Format: "PNG", MaxDimension: 8192, MaxPixels: 4 << 20, MaxTotalBytes: 32 << 20, Transport: "multipart", Packing: []string{"original/v1"}}, Name: "ideogram", Version: adapters.IdeogramVersion, Profile: name, Available: s.ideogram != nil && s.ideogram.APIKey != "", SourceKinds: []string{"generated"}, OutputKinds: []string{"rgb"}, Limitations: []string{"one character reference; identity and pixel reproducibility not guaranteed"}, Model: p.Model, Operation: p.Operation})
+		caps = append(caps, RendererCapability{Quality: p.Quality, Size: p.Size, Attribution: "Powered by Ideogram", UsagePolicy: "https://ideogram.ai/legal/usage-policy/", ImageConditioning: &ImageCapability{Roles: roles, RequiredRoles: required, Format: "PNG", MaxDimension: 8192, MaxPixels: 4 << 20, MaxTotalBytes: 32 << 20, Transport: "multipart", Packing: []string{"original/v1"}}, Name: "ideogram", Version: adapters.IdeogramVersion, Profile: name, Available: s.ideogram != nil && s.ideogram.APIKey != "", SourceKinds: []string{"generated"}, OutputKinds: []string{"rgb"}, Limitations: []string{"one character reference; identity and pixel reproducibility not guaranteed"}, Model: p.Model, Operation: p.Operation})
 	}
 	return caps
 }
@@ -254,12 +256,25 @@ func (s *Service) CancelJob(ctx context.Context, r JobRequest) (Job, error) {
 	}
 	return describeJob(ctx, store, j)
 }
+func (s *Service) RunJob(ctx context.Context, r JobRequest) ([]Job, error) {
+	if r.ID == "" {
+		return nil, fmt.Errorf("job ID is required")
+	}
+	return s.runJobs(ctx, RunJobsRequest{ProjectFile: r.ProjectFile, Workers: 1}, r.ID)
+}
 func (s *Service) RunJobs(ctx context.Context, r RunJobsRequest) ([]Job, error) {
+	return s.runJobs(ctx, r, "")
+}
+func (s *Service) runJobs(ctx context.Context, r RunJobsRequest, only string) ([]Job, error) {
 	store, e := s.openJobs(ctx, r.ProjectFile)
 	if e != nil {
 		return nil, e
 	}
-	e = store.Run(ctx, r.Workers, func(ctx context.Context, payload json.RawMessage, progress func(int) error) ([]byte, error) {
+	run := store.Run
+	if only != "" {
+		run = func(ctx context.Context, _ int, h jobs.Handler) error { return store.RunOne(ctx, only, h) }
+	}
+	e = run(ctx, r.Workers, func(ctx context.Context, payload json.RawMessage, progress func(int) error) ([]byte, error) {
 		var input assetInput
 		if e := json.Unmarshal(payload, &input); e != nil {
 			return nil, e
@@ -390,6 +405,14 @@ func (s *Service) SelectCandidate(ctx context.Context, r SelectCandidateRequest)
 	store, e := s.openJobs(ctx, r.ProjectFile)
 	if e != nil {
 		return EditResult{}, e
+	}
+
+	j, e := store.Get(ctx, r.JobID)
+	if e != nil {
+		return EditResult{}, e
+	}
+	if j.Rejected {
+		return EditResult{}, fmt.Errorf("candidate was rejected; prepare a new candidate")
 	}
 	_, data, _, e := store.Result(ctx, r.JobID)
 	if e != nil {
@@ -576,4 +599,16 @@ func (s *Service) runGeneration(ctx context.Context, input assetInput, progress 
 		return nil, e
 	}
 	return out.Bytes(), ctx.Err()
+}
+
+func (s *Service) RejectJob(ctx context.Context, r JobRequest) (Job, error) {
+	store, e := s.openJobs(ctx, r.ProjectFile)
+	if e != nil {
+		return Job{}, e
+	}
+	j, e := store.Reject(ctx, r.ID)
+	if e != nil {
+		return Job{}, e
+	}
+	return describeJob(ctx, store, j)
 }

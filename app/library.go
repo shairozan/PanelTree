@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -134,10 +135,7 @@ func (s *Service) Library(ctx context.Context, r LibraryRequest) ([]storage.Libr
 		})
 		return nil, e
 	case "use":
-		if !strings.HasPrefix(r.ProjectFile, "pg:") {
-			return nil, fmt.Errorf("library use requires a PostgreSQL project; use export for a portable file copy")
-		}
-		e := s.storage.BindLibrary(ctx, strings.TrimPrefix(r.ProjectFile, "pg:"), r.ID, r.Version, func(w *workspace.Session, v storage.LibraryVersion) error {
+		apply := func(w *workspace.Session, v storage.LibraryVersion) error {
 			if r.ExpectedRevision == "" || w.Snapshot.Revision != r.ExpectedRevision {
 				return fmt.Errorf("revision conflict")
 			}
@@ -202,9 +200,174 @@ func (s *Service) Library(ctx context.Context, r LibraryRequest) ([]storage.Libr
 			var result EditResult
 			e := local.applyEdit(ctx, EditRequest{ProjectFile: w.Owner, ExpectedRevision: r.ExpectedRevision, Edits: edits}, w, &result)
 			return e
+		}
+		if strings.HasPrefix(r.ProjectFile, "pg:") {
+			return nil, s.storage.BindLibrary(ctx, strings.TrimPrefix(r.ProjectFile, "pg:"), r.ID, r.Version, apply)
+		}
+		v, files, e := s.storage.LibraryFiles(ctx, r.ID, r.Version)
+		if e != nil {
+			return nil, e
+		}
+		e = s.openWorkspace(ctx, r.ProjectFile, func(w *workspace.Session) error {
+			if r.ExpectedRevision == "" || r.ExpectedRevision != w.Snapshot.Revision {
+				return fmt.Errorf("revision conflict")
+			}
+			// Only immutable additions are staged; never replace a project's local file.
+			added := []string{}
+			committed := false
+			defer func() {
+				if !committed {
+					for _, path := range added {
+						_ = os.Remove(path)
+					}
+				}
+			}()
+			for rel, data := range files {
+				dest, e := workspace.SafePath(w.Root, rel)
+				if e != nil {
+					return e
+				}
+				prior, e := os.ReadFile(dest)
+				if e == nil {
+					if !bytes.Equal(prior, data) {
+						return fmt.Errorf("library asset path collision")
+					}
+					continue
+				}
+				if !os.IsNotExist(e) {
+					return e
+				}
+				if e = os.MkdirAll(filepath.Dir(dest), 0700); e != nil {
+					return e
+				}
+				if e = os.WriteFile(dest, data, 0600); e != nil {
+					return e
+				}
+				added = append(added, dest)
+			}
+
+			manifest, e := workspace.SafePath(w.Root, ".paneltree/library-versions.json")
+			if e != nil {
+				return e
+			}
+			prior, e := os.ReadFile(manifest)
+			exists := e == nil
+			if e != nil && !os.IsNotExist(e) {
+				return e
+			}
+			if len(prior) > 4<<20 {
+				return fmt.Errorf("library manifest exceeds limit")
+			}
+			versions := []storage.LibraryVersion{}
+			if exists {
+				if e = json.Unmarshal(prior, &versions); e != nil {
+					return e
+				}
+			}
+			found := false
+			for _, old := range versions {
+				if old.ID == v.ID && old.Version == v.Version {
+					found = true
+				}
+			}
+			if !found {
+				versions = append(versions, v)
+			}
+			data, e := json.Marshal(versions)
+			if e != nil {
+				return e
+			}
+			if e = replaceLibraryManifest(manifest, data); e != nil {
+				return e
+			}
+			if e := apply(w, v); e != nil {
+				if exists {
+					if undo := replaceLibraryManifest(manifest, prior); undo != nil {
+						return fmt.Errorf("%v; restoring manifest: %w", e, undo)
+					}
+				} else if undo := os.Remove(manifest); undo != nil {
+					return fmt.Errorf("%v; restoring manifest: %w", e, undo)
+				}
+				return e
+			}
+
+			committed = true
+			return nil
 		})
 		return nil, e
 	default:
 		return nil, fmt.Errorf("unknown library action")
 	}
+}
+
+// LibraryCharacter returns published authoring metadata, never backend credentials.
+type LibraryCharacterDetail struct {
+	model.CharacterPackage
+	PublishedCards map[string]string `json:"published_cards,omitempty"`
+}
+
+func (s *Service) LibraryCharacter(ctx context.Context, id, version string) (LibraryCharacterDetail, error) {
+	var pkg LibraryCharacterDetail
+	if s.storage == nil {
+		return pkg, fmt.Errorf("PostgreSQL library is not configured")
+	}
+	v, files, e := s.storage.LibraryFiles(ctx, id, version)
+	if e != nil {
+		return pkg, e
+	}
+	if e = json.Unmarshal(files[v.Package], &pkg.CharacterPackage); e != nil {
+		return pkg, e
+	}
+	if v.ReferenceSet != "" {
+		var set ReferenceSet
+		if e = json.Unmarshal(files[".paneltree/references/"+v.ReferenceSet+"/00000001.json"], &set); e != nil {
+			return pkg, e
+		}
+		pub, ok := set.Published[v.ReferenceVersion]
+		if !ok {
+			return pkg, fmt.Errorf("published library references unavailable")
+		}
+		pkg.PublishedCards = pub.Cards
+	}
+	return pkg, nil
+}
+func (s *Service) LibraryMedia(ctx context.Context, id, version, path string) ([]byte, error) {
+	if s.storage == nil {
+		return nil, fmt.Errorf("PostgreSQL library is not configured")
+	}
+	_, files, e := s.storage.LibraryFiles(ctx, id, version)
+	if e != nil {
+		return nil, e
+	}
+	data, ok := files[path]
+	if !ok {
+		return nil, fmt.Errorf("library image not found")
+	}
+	if e = validateArtwork(data); e != nil {
+		return nil, e
+	}
+	return data, nil
+}
+
+func replaceLibraryManifest(path string, data []byte) error {
+	if e := os.MkdirAll(filepath.Dir(path), 0700); e != nil {
+		return e
+	}
+	f, e := os.CreateTemp(filepath.Dir(path), ".library-")
+	if e != nil {
+		return e
+	}
+	defer func() { _ = os.Remove(f.Name()) }()
+	if _, e = f.Write(data); e != nil {
+		_ = f.Close()
+		return e
+	}
+	if e = f.Sync(); e != nil {
+		_ = f.Close()
+		return e
+	}
+	if e = f.Close(); e != nil {
+		return e
+	}
+	return os.Rename(f.Name(), path)
 }

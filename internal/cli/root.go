@@ -41,6 +41,7 @@ func Command() *cobra.Command {
 	cmd.AddCommand(jobCommands(cmd)...)
 	cmd.AddCommand(referenceCommand(cmd))
 	cmd.AddCommand(mcpCommand(cmd))
+	cmd.AddCommand(serveCommand(cmd))
 	cmd.AddCommand(storageCommand(cmd))
 	cmd.AddCommand(libraryCommand())
 	return cmd

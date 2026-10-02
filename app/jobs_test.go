@@ -192,3 +192,25 @@ func TestCandidateRejectsChangedDependency(t *testing.T) {
 		t.Fatalf("changed dependency did not reject stale candidate: %v", e)
 	}
 }
+
+func TestRunJobRequiresID(t *testing.T) {
+	s, p, i := editFixture(t)
+	ctx := context.Background()
+	for _, key := range []string{"one", "two"} {
+		if _, e := s.RequestAsset(ctx, AssetRequest{ProjectFile: p, ExpectedRevision: i.Revision, Target: target(), IdempotencyKey: key, Width: 120, Height: 180}); e != nil {
+			t.Fatal(e)
+		}
+	}
+	if _, e := s.RunJob(ctx, JobRequest{ProjectFile: p}); e == nil {
+		t.Error("missing ID accepted")
+	}
+	js, e := s.Jobs(ctx, p)
+	if e != nil {
+		t.Fatal(e)
+	}
+	for _, j := range js {
+		if j.State != "queued" {
+			t.Errorf("unconfirmed job executed: %s", j.State)
+		}
+	}
+}

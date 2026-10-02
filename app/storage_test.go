@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/shairozan/PanelTree/internal/asset"
 	"github.com/shairozan/PanelTree/internal/storage"
 	"github.com/shairozan/PanelTree/model"
@@ -240,6 +241,15 @@ func TestPostgresPublishedReferencesRoundTrip(t *testing.T) {
 	if _, e = s.Library(ctx, LibraryRequest{Action: "publish", ProjectFile: source, ID: id, Version: "refs-v1", Package: "characters/alex.json", Set: "hero", ReferenceVersion: "1"}); e != nil {
 		t.Fatal(e)
 	}
+
+	details, e := s.LibraryCharacter(ctx, id, "refs-v1")
+	if e != nil {
+		t.Fatal(e)
+	}
+	encoded, _ := json.Marshal(details)
+	if !strings.Contains(string(encoded), `"published_cards"`) {
+		t.Fatal("published reference cards missing from library details")
+	}
 	before, e := s.Inspect(ctx, InspectRequest{ProjectFile: handle})
 	if e != nil {
 		t.Fatal(e)
@@ -405,5 +415,51 @@ func TestPostgresManualSelectionsAreIndependent(t *testing.T) {
 	}
 	if _, e = s.Inspect(ctx, InspectRequest{ProjectFile: handle}); e != nil {
 		t.Fatalf("unlocked override changed locked sibling: %v", e)
+	}
+}
+
+func TestFileProjectLibraryApplication(t *testing.T) {
+	s, dbHandle := postgresFixture(t)
+	_, handle, _ := editFixture(t)
+	_, source, _ := characterFixture(t)
+	ctx := context.Background()
+	id := strings.TrimPrefix(dbHandle, "pg:") + "-files"
+	if _, e := s.Library(ctx, LibraryRequest{Action: "publish", ProjectFile: source, ID: id, Version: "v1", Package: "characters/alex.json"}); e != nil {
+		t.Fatal(e)
+	}
+	view, e := s.Inspect(ctx, InspectRequest{ProjectFile: handle})
+	if e != nil {
+		t.Fatal(e)
+	}
+	if _, e = s.Library(ctx, LibraryRequest{Action: "use", ProjectFile: handle, ID: id, Version: "v1", Target: target(), ExpectedRevision: view.Revision}); e != nil {
+		t.Fatal(e)
+	}
+	after, e := s.Inspect(ctx, InspectRequest{ProjectFile: handle})
+	if e != nil {
+		t.Fatal(e)
+	}
+	node := indexLayers(after.Snapshot)["page-01/p1/hero"]
+	found := node.layer.Source.Character != nil && strings.HasPrefix(node.layer.Source.Character.Package, "characters/library/")
+	if !found {
+		t.Fatal("library binding missing")
+	}
+	if e = s.storage.Import(ctx, id+"-restored", handle); e != nil {
+		t.Fatal(e)
+	}
+	if e = s.storage.DeleteLibrary(ctx, id, "v1"); e == nil {
+		t.Fatal("portable file binding lost on import")
+	}
+	if _, e = s.Edit(ctx, EditRequest{ProjectFile: handle, ExpectedRevision: after.Revision, Operations: []Operation{{Target: target(), Action: "lock", Scope: model.AllLock}}}); e != nil {
+		t.Fatal(e)
+	}
+	locked, e := s.Inspect(ctx, InspectRequest{ProjectFile: handle})
+	if e != nil {
+		t.Fatal(e)
+	}
+	if _, e = s.Library(ctx, LibraryRequest{Action: "publish", ProjectFile: source, ID: id, Version: "v2", Package: "characters/alex.json"}); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = s.Library(ctx, LibraryRequest{Action: "use", ProjectFile: handle, ID: id, Version: "v2", Target: target(), ExpectedRevision: locked.Revision}); e == nil {
+		t.Fatal("library update bypassed lock")
 	}
 }

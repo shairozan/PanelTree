@@ -43,3 +43,13 @@ func Init(path string) (string, error) {
 	}
 	return filepath.Join(path, "project.yaml"), nil
 }
+
+// DefaultFontFiles returns the bundled font and its redistribution license.
+func DefaultFontFiles() ([]byte, []byte, error) {
+	font, err := template.ReadFile("template/assets/Go-Regular.ttf")
+	if err != nil {
+		return nil, nil, err
+	}
+	license, err := template.ReadFile("template/assets/Go-Regular.ttf.LICENSE")
+	return font, license, err
+}
